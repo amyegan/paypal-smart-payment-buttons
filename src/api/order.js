@@ -462,7 +462,8 @@ type ApproveOrderOptions = {|
 |};
 
 type ApproveData = {|
-    payerID : string
+    payerID : string,
+    buyerAccessToken? : string
 |};
 
 export function approveOrder({ orderID, planID, buyerAccessToken } : ApproveOrderOptions) : ZalgoPromise<ApproveData> {
@@ -759,6 +760,9 @@ export function payWithPaymentMethodToken({ orderID, paymentMethodToken, clientI
                 ) {
                     buyer {
                         userId
+                        auth {
+                            accessToken
+                        }
                     }
                 }
             }
@@ -777,7 +781,8 @@ export function payWithPaymentMethodToken({ orderID, paymentMethodToken, clientI
     }).then(({ approvePaymentWithNonce }) => {
         getLogger().info('pay_with_paymentMethodToken', JSON.stringify(approvePaymentWithNonce));
         return {
-            payerID: approvePaymentWithNonce.buyer.userId
+            payerID:          approvePaymentWithNonce.buyer.userId,
+            buyerAccessToken: approvePaymentWithNonce.buyer.auth.accessToken
         };
     });
 }
