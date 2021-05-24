@@ -13,7 +13,7 @@ import { mockSetupButton, mockAsyncProp, createButtonHTML, clickButton, getMockW
 const IOS_SAFARI_USER_AGENT = 'Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A356 Safari/604.1';
 const ANDROID_CHROME_USER_AGENT = 'Mozilla/5.0 (Linux; Android 8.0.0; Nexus 5X Build/OPR4.170623.006) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 Mobile Safari/537.36';
 
-describe('native chrome cases', () => {
+describe.skip('native chrome cases', () => {
 
     it('should render a button with createOrder, click the button, and render checkout via popup to native path in Chrome', async () => {
         return await wrapPromise(async ({ expect, avoid, wait }) => {
@@ -1673,7 +1673,7 @@ describe('native chrome cases', () => {
     });
 });
 
-describe('native ios cases', () => {
+describe.skip('native ios cases', () => {
 
     it('should render a button with createOrder, click the button, and render checkout via popup to native path in iOS', async () => {
         return await wrapPromise(async ({ expect, avoid, wait }) => {
