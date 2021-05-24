@@ -479,6 +479,9 @@ export function approveOrder({ orderID, planID, buyerAccessToken } : ApproveOrde
                 ) {
                     buyer {
                         userId
+                        auth {
+                            accessToken
+                        }
                     }
                 }
             }
@@ -489,6 +492,8 @@ export function approveOrder({ orderID, planID, buyerAccessToken } : ApproveOrde
             [ HEADERS.CLIENT_CONTEXT ]: orderID
         }
     }).then(({ approvePayment }) => {
+        console.log('@@@ approve payment', approvePayment);
+        setBuyerAccessToken(approvePayment.buyer.auth.accessToken);
         return {
             payerID: approvePayment.buyer.userId
         };
