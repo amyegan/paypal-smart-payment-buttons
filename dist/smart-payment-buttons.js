@@ -1804,6 +1804,21 @@ window.spb = function(modules) {
                 return res.firebase.auth.sessionToken;
             }));
         }
+        function auth_upgradeFacilitatorAccessToken(facilitatorAccessToken, _ref3) {
+            var _headers;
+            var buyerAccessToken = _ref3.buyerAccessToken, orderID = _ref3.orderID;
+            return callGraphQL({
+                name: "UpgradeFacilitatorAccessToken",
+                headers: (_headers = {}, _headers["x-paypal-internal-euat"] = buyerAccessToken, 
+                _headers["paypal-client-context"] = orderID, _headers),
+                query: "\n            mutation UpgradeFacilitatorAccessToken(\n                $orderID: String!\n                $buyerAccessToken: String!\n                $facilitatorAccessToken: String!\n            ) {\n                upgradeLowScopeAccessToken(\n                    token: $orderID\n                    buyerAccessToken: $buyerAccessToken\n                    merchantLSAT: $facilitatorAccessToken\n                )\n            }\n        ",
+                variables: {
+                    facilitatorAccessToken: facilitatorAccessToken,
+                    buyerAccessToken: buyerAccessToken,
+                    orderID: orderID
+                }
+            }).then(src_util_noop);
+        }
         function patchOrder(orderID, data, _ref5) {
             var _headers8, _headers9;
             var buyerAccessToken = _ref5.buyerAccessToken, _ref5$forceRestAPI = _ref5.forceRestAPI;
@@ -2186,400 +2201,6 @@ window.spb = function(modules) {
         var upgradeLSATExperiment = createExperiment("UPGRADE_LSAT_EXPERIMENT", {
             sample: 10
         });
-        function getOnApprove(_ref4, _ref5) {
-            var intent = _ref4.intent, _ref4$onApprove = _ref4.onApprove, onApprove = void 0 === _ref4$onApprove ? function(intent) {
-                return function(data, actions) {
-                    if ("capture" === intent) return actions.order.capture().then(src_util_noop);
-                    if ("authorize" === intent) return actions.order.authorize().then(src_util_noop);
-                    throw new Error("Unsupported intent for auto-capture: " + intent);
-                };
-            }(intent) : _ref4$onApprove, partnerAttributionID = _ref4.partnerAttributionID, onError = _ref4.onError, clientAccessToken = _ref4.clientAccessToken, vault = _ref4.vault, _ref4$upgradeLSAT = _ref4.upgradeLSAT, upgradeLSAT = void 0 !== _ref4$upgradeLSAT && _ref4$upgradeLSAT;
-            var facilitatorAccessToken = _ref5.facilitatorAccessToken, branded = _ref5.branded, createOrder = _ref5.createOrder;
-            if (!onApprove) throw new Error("Expected onApprove");
-            upgradeLSAT = upgradeLSAT || upgradeLSATExperiment.isEnabled();
-            return memoize((function(_ref6, _ref7) {
-                var payerID = _ref6.payerID, paymentID = _ref6.paymentID, billingToken = _ref6.billingToken, subscriptionID = _ref6.subscriptionID, buyerAccessToken = _ref6.buyerAccessToken, authCode = _ref6.authCode, _ref6$forceRestAPI = _ref6.forceRestAPI, forceRestAPI = void 0 === _ref6$forceRestAPI ? upgradeLSAT : _ref6$forceRestAPI;
-                var restart = _ref7.restart;
-                return promise_ZalgoPromise.try((function() {
-                    return createOrder();
-                })).then((function(orderID) {
-                    var _getLogger$info$track;
-                    logger_getLogger().info("button_approve").track((_getLogger$info$track = {}, _getLogger$info$track.transition_name = "process_checkout_approve", 
-                    _getLogger$info$track.context_type = "EC-Token", _getLogger$info$track.token = orderID, 
-                    _getLogger$info$track.context_id = orderID, _getLogger$info$track)).flush();
-                    billingToken || subscriptionID || clientAccessToken || vault || !payerID && branded && logger_getLogger().error("onapprove_payerid_not_present_for_branded_standalone_button", {
-                        orderID: orderID
-                    }).flush();
-                    return getSupplementalOrderInfo(orderID).then((function(supplementalData) {
-                        var data = {
-                            orderID: orderID,
-                            payerID: payerID,
-                            paymentID: paymentID = paymentID || supplementalData && supplementalData.checkoutSession && supplementalData.checkoutSession.cart && supplementalData.checkoutSession.cart.paymentId,
-                            billingToken: billingToken = billingToken || supplementalData && supplementalData.checkoutSession && supplementalData.checkoutSession.cart && supplementalData.checkoutSession.cart.billingToken,
-                            subscriptionID: subscriptionID,
-                            facilitatorAccessToken: facilitatorAccessToken,
-                            authCode: authCode
-                        };
-                        var actions = function(_ref3) {
-                            var intent = _ref3.intent, orderID = _ref3.orderID, paymentID = _ref3.paymentID, payerID = _ref3.payerID, restart = _ref3.restart, subscriptionID = _ref3.subscriptionID, facilitatorAccessToken = _ref3.facilitatorAccessToken, buyerAccessToken = _ref3.buyerAccessToken, partnerAttributionID = _ref3.partnerAttributionID, forceRestAPI = _ref3.forceRestAPI;
-                            var getSubscriptionApi = memoize((function() {
-                                if (!subscriptionID) throw new Error("No subscription ID present");
-                                return function(subscriptionID, _ref6) {
-                                    return callSmartAPI({
-                                        accessToken: _ref6.buyerAccessToken,
-                                        url: "/smart/api/billagmt/subscriptions/" + subscriptionID
-                                    });
-                                }(subscriptionID, {
-                                    buyerAccessToken: buyerAccessToken
-                                });
-                            }));
-                            var activateSubscriptionApi = memoize((function() {
-                                if (!subscriptionID) throw new Error("No subscription ID present");
-                                return function(subscriptionID, _ref5) {
-                                    return callSmartAPI({
-                                        accessToken: _ref5.buyerAccessToken,
-                                        method: "post",
-                                        url: "/smart/api/billagmt/subscriptions/" + subscriptionID + "/activate"
-                                    });
-                                }(subscriptionID, {
-                                    buyerAccessToken: buyerAccessToken
-                                });
-                            }));
-                            var order = function(_ref) {
-                                var intent = _ref.intent, orderID = _ref.orderID, restart = _ref.restart, facilitatorAccessToken = _ref.facilitatorAccessToken, buyerAccessToken = _ref.buyerAccessToken, partnerAttributionID = _ref.partnerAttributionID, forceRestAPI = _ref.forceRestAPI;
-                                var handleProcessorError = function(err) {
-                                    if (err && err.data && err.data.details && err.data.details.some((function(detail) {
-                                        return "INSTRUMENT_DECLINED" === detail.issue || "PAYER_ACTION_REQUIRED" === detail.issue;
-                                    }))) return restart().then(unresolvedPromise);
-                                    throw new Error("Order could not be captured");
-                                };
-                                var get = memoize((function() {
-                                    return function(orderID, _ref2) {
-                                        var _headers2, _headers3;
-                                        var buyerAccessToken = _ref2.buyerAccessToken, _ref2$forceRestAPI = _ref2.forceRestAPI;
-                                        return void 0 !== _ref2$forceRestAPI && _ref2$forceRestAPI ? callRestAPI({
-                                            accessToken: _ref2.facilitatorAccessToken,
-                                            url: ORDERS_API_URL + "/" + orderID,
-                                            headers: (_headers2 = {}, _headers2["paypal-partner-attribution-id"] = _ref2.partnerAttributionID || "", 
-                                            _headers2.prefer = "return=representation", _headers2)
-                                        }) : callSmartAPI({
-                                            accessToken: buyerAccessToken,
-                                            url: "/smart/api/order/" + orderID,
-                                            headers: (_headers3 = {}, _headers3["paypal-client-context"] = orderID, _headers3)
-                                        });
-                                    }(orderID, {
-                                        facilitatorAccessToken: facilitatorAccessToken,
-                                        buyerAccessToken: buyerAccessToken,
-                                        partnerAttributionID: partnerAttributionID,
-                                        forceRestAPI: forceRestAPI
-                                    });
-                                }));
-                                var capture = memoize((function() {
-                                    if ("capture" !== intent) throw new Error("Use intent=capture to use client-side capture");
-                                    return function(orderID, _ref3) {
-                                        var _headers4, _headers5;
-                                        var buyerAccessToken = _ref3.buyerAccessToken, _ref3$forceRestAPI = _ref3.forceRestAPI;
-                                        return void 0 !== _ref3$forceRestAPI && _ref3$forceRestAPI ? callRestAPI({
-                                            accessToken: _ref3.facilitatorAccessToken,
-                                            method: "post",
-                                            url: ORDERS_API_URL + "/" + orderID + "/capture",
-                                            headers: (_headers4 = {}, _headers4["paypal-partner-attribution-id"] = _ref3.partnerAttributionID || "", 
-                                            _headers4.prefer = "return=representation", _headers4)
-                                        }) : callSmartAPI({
-                                            accessToken: buyerAccessToken,
-                                            method: "post",
-                                            url: "/smart/api/order/" + orderID + "/capture",
-                                            headers: (_headers5 = {}, _headers5["paypal-client-context"] = orderID, _headers5)
-                                        });
-                                    }(orderID, {
-                                        facilitatorAccessToken: facilitatorAccessToken,
-                                        buyerAccessToken: buyerAccessToken,
-                                        partnerAttributionID: partnerAttributionID,
-                                        forceRestAPI: forceRestAPI
-                                    }).finally(get.reset).finally(capture.reset).catch(handleProcessorError);
-                                }));
-                                var authorize = memoize((function() {
-                                    if ("authorize" !== intent) throw new Error("Use intent=authorize to use client-side authorize");
-                                    return function(orderID, _ref4) {
-                                        var _headers6, _headers7;
-                                        var buyerAccessToken = _ref4.buyerAccessToken, _ref4$forceRestAPI = _ref4.forceRestAPI;
-                                        return void 0 !== _ref4$forceRestAPI && _ref4$forceRestAPI ? callRestAPI({
-                                            accessToken: _ref4.facilitatorAccessToken,
-                                            method: "post",
-                                            url: ORDERS_API_URL + "/" + orderID + "/authorize",
-                                            headers: (_headers6 = {}, _headers6["paypal-partner-attribution-id"] = _ref4.partnerAttributionID || "", 
-                                            _headers6.prefer = "return=representation", _headers6)
-                                        }) : callSmartAPI({
-                                            accessToken: buyerAccessToken,
-                                            method: "post",
-                                            url: "/smart/api/order/" + orderID + "/authorize",
-                                            headers: (_headers7 = {}, _headers7["paypal-client-context"] = orderID, _headers7)
-                                        });
-                                    }(orderID, {
-                                        facilitatorAccessToken: facilitatorAccessToken,
-                                        buyerAccessToken: buyerAccessToken,
-                                        partnerAttributionID: partnerAttributionID,
-                                        forceRestAPI: forceRestAPI
-                                    }).finally(get.reset).finally(authorize.reset).catch(handleProcessorError);
-                                }));
-                                return {
-                                    capture: capture,
-                                    authorize: authorize,
-                                    patch: function(data) {
-                                        void 0 === data && (data = {});
-                                        return patchOrder(orderID, data, {
-                                            facilitatorAccessToken: facilitatorAccessToken,
-                                            buyerAccessToken: buyerAccessToken,
-                                            partnerAttributionID: partnerAttributionID,
-                                            forceRestAPI: forceRestAPI
-                                        }).catch((function() {
-                                            throw new Error("Order could not be patched");
-                                        }));
-                                    },
-                                    get: get
-                                };
-                            }({
-                                intent: intent,
-                                orderID: orderID,
-                                paymentID: paymentID,
-                                payerID: payerID,
-                                subscriptionID: subscriptionID,
-                                restart: restart,
-                                facilitatorAccessToken: facilitatorAccessToken,
-                                buyerAccessToken: buyerAccessToken,
-                                partnerAttributionID: partnerAttributionID,
-                                forceRestAPI: forceRestAPI
-                            });
-                            !function(_ref2) {
-                                var intent = _ref2.intent, paymentID = _ref2.paymentID, payerID = _ref2.payerID, restart = _ref2.restart, facilitatorAccessToken = _ref2.facilitatorAccessToken, buyerAccessToken = _ref2.buyerAccessToken, partnerAttributionID = _ref2.partnerAttributionID;
-                                if (paymentID) {
-                                    var handleProcessorError = function(err) {
-                                        if (err && err.data && err.data.details && err.data.details.some((function(detail) {
-                                            return "INSTRUMENT_DECLINED" === detail.issue || "PAYER_ACTION_REQUIRED" === detail.issue;
-                                        }))) return restart().then(unresolvedPromise);
-                                        throw new Error("Order could not be captured");
-                                    };
-                                    var get = memoize((function() {
-                                        return function(paymentID, _ref4) {
-                                            var _headers2;
-                                            return callRestAPI({
-                                                accessToken: _ref4.facilitatorAccessToken,
-                                                url: "/v1/payments/payment/" + paymentID,
-                                                headers: (_headers2 = {}, _headers2["paypal-partner-attribution-id"] = _ref4.partnerAttributionID || "", 
-                                                _headers2)
-                                            });
-                                        }(paymentID, {
-                                            facilitatorAccessToken: facilitatorAccessToken,
-                                            buyerAccessToken: buyerAccessToken,
-                                            partnerAttributionID: partnerAttributionID
-                                        });
-                                    }));
-                                    var execute = memoize((function() {
-                                        if (!payerID) throw new Error("payerID required for payment execute");
-                                        if ("capture" !== intent) throw new Error("Use intent=capture to use client-side capture");
-                                        return function(paymentID, payerID, _ref5) {
-                                            var _headers3;
-                                            return callRestAPI({
-                                                accessToken: _ref5.facilitatorAccessToken,
-                                                method: "post",
-                                                url: "/v1/payments/payment/" + paymentID + "/execute",
-                                                headers: (_headers3 = {}, _headers3["paypal-partner-attribution-id"] = _ref5.partnerAttributionID || "", 
-                                                _headers3),
-                                                data: {
-                                                    payer_id: payerID
-                                                }
-                                            });
-                                        }(paymentID, payerID, {
-                                            facilitatorAccessToken: facilitatorAccessToken,
-                                            buyerAccessToken: buyerAccessToken,
-                                            partnerAttributionID: partnerAttributionID
-                                        }).finally(get.reset).finally(execute.reset).catch(handleProcessorError);
-                                    }));
-                                }
-                            }({
-                                intent: intent,
-                                orderID: orderID,
-                                paymentID: paymentID,
-                                payerID: payerID,
-                                subscriptionID: subscriptionID,
-                                restart: restart,
-                                facilitatorAccessToken: facilitatorAccessToken,
-                                buyerAccessToken: buyerAccessToken,
-                                partnerAttributionID: partnerAttributionID,
-                                forceRestAPI: forceRestAPI
-                            });
-                            return {
-                                order: order,
-                                payment: null,
-                                subscription: {
-                                    get: getSubscriptionApi,
-                                    activate: activateSubscriptionApi
-                                },
-                                restart: restart,
-                                redirect: function(url) {
-                                    if (!url) throw new Error("Expected redirect url");
-                                    if (-1 === url.indexOf("://")) {
-                                        logger_getLogger().warn("redir_url_non_scheme", {
-                                            url: url
-                                        }).flush();
-                                        throw new Error("Invalid redirect url: " + url + " - must be fully qualified url");
-                                    }
-                                    url.match(/^https?:\/\//) || logger_getLogger().warn("redir_url_non_http", {
-                                        url: url
-                                    }).flush();
-                                    return dom_redirect(url, window.top);
-                                }
-                            };
-                        }({
-                            orderID: orderID,
-                            paymentID: paymentID,
-                            payerID: payerID,
-                            intent: intent = intent || supplementalData && supplementalData.checkoutSession && supplementalData.checkoutSession.cart && supplementalData.checkoutSession.cart.intent,
-                            restart: restart,
-                            subscriptionID: subscriptionID,
-                            facilitatorAccessToken: facilitatorAccessToken,
-                            buyerAccessToken: buyerAccessToken,
-                            partnerAttributionID: partnerAttributionID,
-                            forceRestAPI: forceRestAPI
-                        });
-                        return onApprove(data, actions).catch((function(err) {
-                            return promise_ZalgoPromise.try((function() {
-                                return onError(err);
-                            })).then((function() {
-                                throw err;
-                            }));
-                        }));
-                    }));
-                }));
-            }));
-        }
-        function getOnCancel(_ref2, _ref3) {
-            var _ref2$onCancel = _ref2.onCancel, onCancel = void 0 === _ref2$onCancel ? promiseNoop : _ref2$onCancel, onError = _ref2.onError;
-            var createOrder = _ref3.createOrder;
-            return memoize((function() {
-                return createOrder().then((function(orderID) {
-                    var _getLogger$info$track;
-                    logger_getLogger().info("button_cancel").track((_getLogger$info$track = {}, _getLogger$info$track.transition_name = "process_checkout_cancel", 
-                    _getLogger$info$track.context_type = "EC-Token", _getLogger$info$track.token = orderID, 
-                    _getLogger$info$track.context_id = orderID, _getLogger$info$track)).flush();
-                    return onCancel({
-                        orderID: {
-                            orderID: orderID
-                        }.orderID
-                    }, {
-                        redirect: function(url) {
-                            if (!url) throw new Error("Expected redirect url");
-                            if (-1 === url.indexOf("://")) {
-                                logger_getLogger().warn("redir_url_non_scheme", {
-                                    url: url
-                                }).flush();
-                                throw new Error("Invalid redirect url: " + url + " - must be fully qualified url");
-                            }
-                            url.match(/^https?:\/\//) || logger_getLogger().warn("redir_url_non_http", {
-                                url: url
-                            }).flush();
-                            return dom_redirect(url, window.top);
-                        }
-                    });
-                })).catch((function(err) {
-                    return onError(err);
-                }));
-            }));
-        }
-        function getOnShippingChange(_ref2, _ref3) {
-            var onShippingChange = _ref2.onShippingChange, partnerAttributionID = _ref2.partnerAttributionID, _ref2$upgradeLSAT = _ref2.upgradeLSAT, upgradeLSAT = void 0 !== _ref2$upgradeLSAT && _ref2$upgradeLSAT;
-            var facilitatorAccessToken = _ref3.facilitatorAccessToken, createOrder = _ref3.createOrder;
-            upgradeLSAT = upgradeLSAT || upgradeLSATExperiment.isEnabled();
-            if (onShippingChange) return function(_ref4, actions) {
-                var buyerAccessToken = _ref4.buyerAccessToken, _ref4$forceRestAPI = _ref4.forceRestAPI, forceRestAPI = void 0 === _ref4$forceRestAPI ? upgradeLSAT : _ref4$forceRestAPI, data = function(source, excluded) {
-                    if (null == source) return {};
-                    var target = {};
-                    var sourceKeys = Object.keys(source);
-                    var key, i;
-                    for (i = 0; i < sourceKeys.length; i++) excluded.indexOf(key = sourceKeys[i]) >= 0 || (target[key] = source[key]);
-                    return target;
-                }(_ref4, [ "buyerAccessToken", "forceRestAPI" ]);
-                return createOrder().then((function(orderID) {
-                    var _getLogger$info$track;
-                    logger_getLogger().info("button_shipping_change").track((_getLogger$info$track = {}, 
-                    _getLogger$info$track.transition_name = "process_checkout_shipping_change", _getLogger$info$track.context_type = "EC-Token", 
-                    _getLogger$info$track.token = orderID, _getLogger$info$track.context_id = orderID, 
-                    _getLogger$info$track)).flush();
-                    return onShippingChange(data, function(_ref) {
-                        var orderID = _ref.orderID, facilitatorAccessToken = _ref.facilitatorAccessToken, buyerAccessToken = _ref.buyerAccessToken, partnerAttributionID = _ref.partnerAttributionID, forceRestAPI = _ref.forceRestAPI;
-                        return {
-                            resolve: function() {
-                                return promise_ZalgoPromise.resolve();
-                            },
-                            reject: _ref.actions.reject || function() {
-                                throw new Error("Missing reject action callback");
-                            },
-                            order: {
-                                patch: function(data) {
-                                    void 0 === data && (data = {});
-                                    return patchOrder(orderID, data, {
-                                        facilitatorAccessToken: facilitatorAccessToken,
-                                        buyerAccessToken: buyerAccessToken,
-                                        partnerAttributionID: partnerAttributionID,
-                                        forceRestAPI: forceRestAPI
-                                    }).catch((function() {
-                                        throw new Error("Order could not be patched");
-                                    }));
-                                }
-                            }
-                        };
-                    }({
-                        orderID: orderID,
-                        facilitatorAccessToken: facilitatorAccessToken,
-                        buyerAccessToken: buyerAccessToken,
-                        actions: actions,
-                        partnerAttributionID: partnerAttributionID,
-                        forceRestAPI: forceRestAPI
-                    }));
-                }));
-            };
-        }
-        function getOnAuth(_ref) {
-            var facilitatorAccessToken = _ref.facilitatorAccessToken, createOrder = _ref.createOrder, upgradeLSAT = _ref.upgradeLSAT;
-            upgradeLSAT = upgradeLSAT || upgradeLSATExperiment.isEnabled();
-            return function(_ref2) {
-                var accessToken = _ref2.accessToken;
-                logger_getLogger().info("spb_onauth_access_token_" + (accessToken ? "present" : "not_present"));
-                return promise_ZalgoPromise.try((function() {
-                    if (accessToken) {
-                        upgradeLSATExperiment.logStart();
-                        return upgradeLSAT ? createOrder().then((function(orderID) {
-                            return function(facilitatorAccessToken, _ref3) {
-                                var _headers;
-                                var buyerAccessToken = _ref3.buyerAccessToken, orderID = _ref3.orderID;
-                                return callGraphQL({
-                                    name: "UpgradeFacilitatorAccessToken",
-                                    headers: (_headers = {}, _headers["x-paypal-internal-euat"] = buyerAccessToken, 
-                                    _headers["paypal-client-context"] = orderID, _headers),
-                                    query: "\n            mutation UpgradeFacilitatorAccessToken(\n                $orderID: String!\n                $buyerAccessToken: String!\n                $facilitatorAccessToken: String!\n            ) {\n                upgradeLowScopeAccessToken(\n                    token: $orderID\n                    buyerAccessToken: $buyerAccessToken\n                    merchantLSAT: $facilitatorAccessToken\n                )\n            }\n        ",
-                                    variables: {
-                                        facilitatorAccessToken: facilitatorAccessToken,
-                                        buyerAccessToken: buyerAccessToken,
-                                        orderID: orderID
-                                    }
-                                }).then(src_util_noop);
-                            }(facilitatorAccessToken, {
-                                buyerAccessToken: accessToken,
-                                orderID: orderID
-                            });
-                        })).then((function() {
-                            logger_getLogger().info("upgrade_lsat_success");
-                            return accessToken;
-                        })).catch((function(err) {
-                            logger_getLogger().warn("upgrade_lsat_failure", {
-                                error: stringifyError(err)
-                            });
-                            return accessToken;
-                        })) : accessToken;
-                    }
-                }));
-            };
-        }
         var props_TYPES = !0;
         function getProps(_ref) {
             var _branded;
@@ -2789,6 +2410,414 @@ window.spb = function(modules) {
             }({
                 onError: xprops.onError
             });
+            var onApprove = function(_ref4, _ref5) {
+                var intent = _ref4.intent, _ref4$onApprove = _ref4.onApprove, onApprove = void 0 === _ref4$onApprove ? function(intent) {
+                    return function(data, actions) {
+                        if ("capture" === intent) return actions.order.capture().then(src_util_noop);
+                        if ("authorize" === intent) return actions.order.authorize().then(src_util_noop);
+                        throw new Error("Unsupported intent for auto-capture: " + intent);
+                    };
+                }(intent) : _ref4$onApprove, partnerAttributionID = _ref4.partnerAttributionID, onError = _ref4.onError, clientAccessToken = _ref4.clientAccessToken, vault = _ref4.vault, _ref4$upgradeLSAT = _ref4.upgradeLSAT, upgradeLSAT = void 0 !== _ref4$upgradeLSAT && _ref4$upgradeLSAT;
+                var facilitatorAccessToken = _ref5.facilitatorAccessToken, branded = _ref5.branded, createOrder = _ref5.createOrder;
+                if (!onApprove) throw new Error("Expected onApprove");
+                upgradeLSAT = upgradeLSAT || upgradeLSATExperiment.isEnabled();
+                return memoize((function(_ref6, _ref7) {
+                    var payerID = _ref6.payerID, paymentID = _ref6.paymentID, billingToken = _ref6.billingToken, subscriptionID = _ref6.subscriptionID, buyerAccessToken = _ref6.buyerAccessToken, authCode = _ref6.authCode, _ref6$forceRestAPI = _ref6.forceRestAPI, forceRestAPI = void 0 === _ref6$forceRestAPI ? upgradeLSAT : _ref6$forceRestAPI;
+                    var restart = _ref7.restart;
+                    return promise_ZalgoPromise.try((function() {
+                        return createOrder();
+                    })).then((function(orderID) {
+                        var _getLogger$info$track;
+                        logger_getLogger().info("button_approve").track((_getLogger$info$track = {}, _getLogger$info$track.transition_name = "process_checkout_approve", 
+                        _getLogger$info$track.context_type = "EC-Token", _getLogger$info$track.token = orderID, 
+                        _getLogger$info$track.context_id = orderID, _getLogger$info$track)).flush();
+                        billingToken || subscriptionID || clientAccessToken || vault || !payerID && branded && logger_getLogger().error("onapprove_payerid_not_present_for_branded_standalone_button", {
+                            orderID: orderID
+                        }).flush();
+                        return getSupplementalOrderInfo(orderID).then((function(supplementalData) {
+                            var data = {
+                                orderID: orderID,
+                                payerID: payerID,
+                                paymentID: paymentID = paymentID || supplementalData && supplementalData.checkoutSession && supplementalData.checkoutSession.cart && supplementalData.checkoutSession.cart.paymentId,
+                                billingToken: billingToken = billingToken || supplementalData && supplementalData.checkoutSession && supplementalData.checkoutSession.cart && supplementalData.checkoutSession.cart.billingToken,
+                                subscriptionID: subscriptionID,
+                                facilitatorAccessToken: facilitatorAccessToken,
+                                authCode: authCode
+                            };
+                            var actions = function(_ref3) {
+                                var intent = _ref3.intent, orderID = _ref3.orderID, paymentID = _ref3.paymentID, payerID = _ref3.payerID, restart = _ref3.restart, subscriptionID = _ref3.subscriptionID, facilitatorAccessToken = _ref3.facilitatorAccessToken, buyerAccessToken = _ref3.buyerAccessToken, partnerAttributionID = _ref3.partnerAttributionID, forceRestAPI = _ref3.forceRestAPI;
+                                var getSubscriptionApi = memoize((function() {
+                                    if (!subscriptionID) throw new Error("No subscription ID present");
+                                    return function(subscriptionID, _ref6) {
+                                        return callSmartAPI({
+                                            accessToken: _ref6.buyerAccessToken,
+                                            url: "/smart/api/billagmt/subscriptions/" + subscriptionID
+                                        });
+                                    }(subscriptionID, {
+                                        buyerAccessToken: buyerAccessToken
+                                    });
+                                }));
+                                var activateSubscriptionApi = memoize((function() {
+                                    if (!subscriptionID) throw new Error("No subscription ID present");
+                                    return function(subscriptionID, _ref5) {
+                                        return callSmartAPI({
+                                            accessToken: _ref5.buyerAccessToken,
+                                            method: "post",
+                                            url: "/smart/api/billagmt/subscriptions/" + subscriptionID + "/activate"
+                                        });
+                                    }(subscriptionID, {
+                                        buyerAccessToken: buyerAccessToken
+                                    });
+                                }));
+                                var order = function(_ref) {
+                                    var intent = _ref.intent, orderID = _ref.orderID, restart = _ref.restart, facilitatorAccessToken = _ref.facilitatorAccessToken, buyerAccessToken = _ref.buyerAccessToken, partnerAttributionID = _ref.partnerAttributionID, forceRestAPI = _ref.forceRestAPI;
+                                    var handleProcessorError = function(err) {
+                                        if (err && err.data && err.data.details && err.data.details.some((function(detail) {
+                                            return "INSTRUMENT_DECLINED" === detail.issue || "PAYER_ACTION_REQUIRED" === detail.issue;
+                                        }))) return restart().then(unresolvedPromise);
+                                        throw new Error("Order could not be captured");
+                                    };
+                                    var get = memoize((function() {
+                                        return function(orderID, _ref2) {
+                                            var _headers2, _headers3;
+                                            var buyerAccessToken = _ref2.buyerAccessToken, _ref2$forceRestAPI = _ref2.forceRestAPI;
+                                            return void 0 !== _ref2$forceRestAPI && _ref2$forceRestAPI ? callRestAPI({
+                                                accessToken: _ref2.facilitatorAccessToken,
+                                                url: ORDERS_API_URL + "/" + orderID,
+                                                headers: (_headers2 = {}, _headers2["paypal-partner-attribution-id"] = _ref2.partnerAttributionID || "", 
+                                                _headers2.prefer = "return=representation", _headers2)
+                                            }) : callSmartAPI({
+                                                accessToken: buyerAccessToken,
+                                                url: "/smart/api/order/" + orderID,
+                                                headers: (_headers3 = {}, _headers3["paypal-client-context"] = orderID, _headers3)
+                                            });
+                                        }(orderID, {
+                                            facilitatorAccessToken: facilitatorAccessToken,
+                                            buyerAccessToken: buyerAccessToken,
+                                            partnerAttributionID: partnerAttributionID,
+                                            forceRestAPI: forceRestAPI
+                                        });
+                                    }));
+                                    var capture = memoize((function() {
+                                        if ("capture" !== intent) throw new Error("Use intent=capture to use client-side capture");
+                                        return function(orderID, _ref3) {
+                                            var _headers4, _headers5;
+                                            var buyerAccessToken = _ref3.buyerAccessToken, _ref3$forceRestAPI = _ref3.forceRestAPI;
+                                            return void 0 !== _ref3$forceRestAPI && _ref3$forceRestAPI ? callRestAPI({
+                                                accessToken: _ref3.facilitatorAccessToken,
+                                                method: "post",
+                                                url: ORDERS_API_URL + "/" + orderID + "/capture",
+                                                headers: (_headers4 = {}, _headers4["paypal-partner-attribution-id"] = _ref3.partnerAttributionID || "", 
+                                                _headers4.prefer = "return=representation", _headers4)
+                                            }) : callSmartAPI({
+                                                accessToken: buyerAccessToken,
+                                                method: "post",
+                                                url: "/smart/api/order/" + orderID + "/capture",
+                                                headers: (_headers5 = {}, _headers5["paypal-client-context"] = orderID, _headers5)
+                                            });
+                                        }(orderID, {
+                                            facilitatorAccessToken: facilitatorAccessToken,
+                                            buyerAccessToken: buyerAccessToken,
+                                            partnerAttributionID: partnerAttributionID,
+                                            forceRestAPI: forceRestAPI
+                                        }).finally(get.reset).finally(capture.reset).catch(handleProcessorError);
+                                    }));
+                                    var authorize = memoize((function() {
+                                        if ("authorize" !== intent) throw new Error("Use intent=authorize to use client-side authorize");
+                                        return function(orderID, _ref4) {
+                                            var _headers6, _headers7;
+                                            var buyerAccessToken = _ref4.buyerAccessToken, _ref4$forceRestAPI = _ref4.forceRestAPI;
+                                            return void 0 !== _ref4$forceRestAPI && _ref4$forceRestAPI ? callRestAPI({
+                                                accessToken: _ref4.facilitatorAccessToken,
+                                                method: "post",
+                                                url: ORDERS_API_URL + "/" + orderID + "/authorize",
+                                                headers: (_headers6 = {}, _headers6["paypal-partner-attribution-id"] = _ref4.partnerAttributionID || "", 
+                                                _headers6.prefer = "return=representation", _headers6)
+                                            }) : callSmartAPI({
+                                                accessToken: buyerAccessToken,
+                                                method: "post",
+                                                url: "/smart/api/order/" + orderID + "/authorize",
+                                                headers: (_headers7 = {}, _headers7["paypal-client-context"] = orderID, _headers7)
+                                            });
+                                        }(orderID, {
+                                            facilitatorAccessToken: facilitatorAccessToken,
+                                            buyerAccessToken: buyerAccessToken,
+                                            partnerAttributionID: partnerAttributionID,
+                                            forceRestAPI: forceRestAPI
+                                        }).finally(get.reset).finally(authorize.reset).catch(handleProcessorError);
+                                    }));
+                                    return {
+                                        capture: capture,
+                                        authorize: authorize,
+                                        patch: function(data) {
+                                            void 0 === data && (data = {});
+                                            return patchOrder(orderID, data, {
+                                                facilitatorAccessToken: facilitatorAccessToken,
+                                                buyerAccessToken: buyerAccessToken,
+                                                partnerAttributionID: partnerAttributionID,
+                                                forceRestAPI: forceRestAPI
+                                            }).catch((function() {
+                                                throw new Error("Order could not be patched");
+                                            }));
+                                        },
+                                        get: get
+                                    };
+                                }({
+                                    intent: intent,
+                                    orderID: orderID,
+                                    paymentID: paymentID,
+                                    payerID: payerID,
+                                    subscriptionID: subscriptionID,
+                                    restart: restart,
+                                    facilitatorAccessToken: facilitatorAccessToken,
+                                    buyerAccessToken: buyerAccessToken,
+                                    partnerAttributionID: partnerAttributionID,
+                                    forceRestAPI: forceRestAPI
+                                });
+                                !function(_ref2) {
+                                    var intent = _ref2.intent, paymentID = _ref2.paymentID, payerID = _ref2.payerID, restart = _ref2.restart, facilitatorAccessToken = _ref2.facilitatorAccessToken, buyerAccessToken = _ref2.buyerAccessToken, partnerAttributionID = _ref2.partnerAttributionID;
+                                    if (paymentID) {
+                                        var handleProcessorError = function(err) {
+                                            if (err && err.data && err.data.details && err.data.details.some((function(detail) {
+                                                return "INSTRUMENT_DECLINED" === detail.issue || "PAYER_ACTION_REQUIRED" === detail.issue;
+                                            }))) return restart().then(unresolvedPromise);
+                                            throw new Error("Order could not be captured");
+                                        };
+                                        var get = memoize((function() {
+                                            return function(paymentID, _ref4) {
+                                                var _headers2;
+                                                return callRestAPI({
+                                                    accessToken: _ref4.facilitatorAccessToken,
+                                                    url: "/v1/payments/payment/" + paymentID,
+                                                    headers: (_headers2 = {}, _headers2["paypal-partner-attribution-id"] = _ref4.partnerAttributionID || "", 
+                                                    _headers2)
+                                                });
+                                            }(paymentID, {
+                                                facilitatorAccessToken: facilitatorAccessToken,
+                                                buyerAccessToken: buyerAccessToken,
+                                                partnerAttributionID: partnerAttributionID
+                                            });
+                                        }));
+                                        var execute = memoize((function() {
+                                            if (!payerID) throw new Error("payerID required for payment execute");
+                                            if ("capture" !== intent) throw new Error("Use intent=capture to use client-side capture");
+                                            return function(paymentID, payerID, _ref5) {
+                                                var _headers3;
+                                                return callRestAPI({
+                                                    accessToken: _ref5.facilitatorAccessToken,
+                                                    method: "post",
+                                                    url: "/v1/payments/payment/" + paymentID + "/execute",
+                                                    headers: (_headers3 = {}, _headers3["paypal-partner-attribution-id"] = _ref5.partnerAttributionID || "", 
+                                                    _headers3),
+                                                    data: {
+                                                        payer_id: payerID
+                                                    }
+                                                });
+                                            }(paymentID, payerID, {
+                                                facilitatorAccessToken: facilitatorAccessToken,
+                                                buyerAccessToken: buyerAccessToken,
+                                                partnerAttributionID: partnerAttributionID
+                                            }).finally(get.reset).finally(execute.reset).catch(handleProcessorError);
+                                        }));
+                                    }
+                                }({
+                                    intent: intent,
+                                    orderID: orderID,
+                                    paymentID: paymentID,
+                                    payerID: payerID,
+                                    subscriptionID: subscriptionID,
+                                    restart: restart,
+                                    facilitatorAccessToken: facilitatorAccessToken,
+                                    buyerAccessToken: buyerAccessToken,
+                                    partnerAttributionID: partnerAttributionID,
+                                    forceRestAPI: forceRestAPI
+                                });
+                                return {
+                                    order: order,
+                                    payment: null,
+                                    subscription: {
+                                        get: getSubscriptionApi,
+                                        activate: activateSubscriptionApi
+                                    },
+                                    restart: restart,
+                                    redirect: function(url) {
+                                        if (!url) throw new Error("Expected redirect url");
+                                        if (-1 === url.indexOf("://")) {
+                                            logger_getLogger().warn("redir_url_non_scheme", {
+                                                url: url
+                                            }).flush();
+                                            throw new Error("Invalid redirect url: " + url + " - must be fully qualified url");
+                                        }
+                                        url.match(/^https?:\/\//) || logger_getLogger().warn("redir_url_non_http", {
+                                            url: url
+                                        }).flush();
+                                        return dom_redirect(url, window.top);
+                                    }
+                                };
+                            }({
+                                orderID: orderID,
+                                paymentID: paymentID,
+                                payerID: payerID,
+                                intent: intent = intent || supplementalData && supplementalData.checkoutSession && supplementalData.checkoutSession.cart && supplementalData.checkoutSession.cart.intent,
+                                restart: restart,
+                                subscriptionID: subscriptionID,
+                                facilitatorAccessToken: facilitatorAccessToken,
+                                buyerAccessToken: buyerAccessToken,
+                                partnerAttributionID: partnerAttributionID,
+                                forceRestAPI: forceRestAPI
+                            });
+                            return onApprove(data, actions).catch((function(err) {
+                                return promise_ZalgoPromise.try((function() {
+                                    return onError(err);
+                                })).then((function() {
+                                    throw err;
+                                }));
+                            }));
+                        }));
+                    }));
+                }));
+            }({
+                onApprove: xprops.onApprove,
+                intent: intent,
+                onError: onError,
+                partnerAttributionID: partnerAttributionID,
+                upgradeLSAT: upgradeLSAT,
+                clientAccessToken: clientAccessToken,
+                vault: vault
+            }, {
+                facilitatorAccessToken: facilitatorAccessToken,
+                branded: branded,
+                createOrder: createOrder
+            });
+            var onCancel = function(_ref2, _ref3) {
+                var _ref2$onCancel = _ref2.onCancel, onCancel = void 0 === _ref2$onCancel ? promiseNoop : _ref2$onCancel, onError = _ref2.onError;
+                var createOrder = _ref3.createOrder;
+                return memoize((function() {
+                    return createOrder().then((function(orderID) {
+                        var _getLogger$info$track;
+                        logger_getLogger().info("button_cancel").track((_getLogger$info$track = {}, _getLogger$info$track.transition_name = "process_checkout_cancel", 
+                        _getLogger$info$track.context_type = "EC-Token", _getLogger$info$track.token = orderID, 
+                        _getLogger$info$track.context_id = orderID, _getLogger$info$track)).flush();
+                        return onCancel({
+                            orderID: {
+                                orderID: orderID
+                            }.orderID
+                        }, {
+                            redirect: function(url) {
+                                if (!url) throw new Error("Expected redirect url");
+                                if (-1 === url.indexOf("://")) {
+                                    logger_getLogger().warn("redir_url_non_scheme", {
+                                        url: url
+                                    }).flush();
+                                    throw new Error("Invalid redirect url: " + url + " - must be fully qualified url");
+                                }
+                                url.match(/^https?:\/\//) || logger_getLogger().warn("redir_url_non_http", {
+                                    url: url
+                                }).flush();
+                                return dom_redirect(url, window.top);
+                            }
+                        });
+                    })).catch((function(err) {
+                        return onError(err);
+                    }));
+                }));
+            }({
+                onCancel: xprops.onCancel,
+                onError: onError
+            }, {
+                createOrder: createOrder
+            });
+            var onShippingChange = function(_ref2, _ref3) {
+                var onShippingChange = _ref2.onShippingChange, partnerAttributionID = _ref2.partnerAttributionID, _ref2$upgradeLSAT = _ref2.upgradeLSAT, upgradeLSAT = void 0 !== _ref2$upgradeLSAT && _ref2$upgradeLSAT;
+                var facilitatorAccessToken = _ref3.facilitatorAccessToken, createOrder = _ref3.createOrder;
+                upgradeLSAT = upgradeLSAT || upgradeLSATExperiment.isEnabled();
+                if (onShippingChange) return function(_ref4, actions) {
+                    var buyerAccessToken = _ref4.buyerAccessToken, _ref4$forceRestAPI = _ref4.forceRestAPI, forceRestAPI = void 0 === _ref4$forceRestAPI ? upgradeLSAT : _ref4$forceRestAPI, data = function(source, excluded) {
+                        if (null == source) return {};
+                        var target = {};
+                        var sourceKeys = Object.keys(source);
+                        var key, i;
+                        for (i = 0; i < sourceKeys.length; i++) excluded.indexOf(key = sourceKeys[i]) >= 0 || (target[key] = source[key]);
+                        return target;
+                    }(_ref4, [ "buyerAccessToken", "forceRestAPI" ]);
+                    return createOrder().then((function(orderID) {
+                        var _getLogger$info$track;
+                        logger_getLogger().info("button_shipping_change").track((_getLogger$info$track = {}, 
+                        _getLogger$info$track.transition_name = "process_checkout_shipping_change", _getLogger$info$track.context_type = "EC-Token", 
+                        _getLogger$info$track.token = orderID, _getLogger$info$track.context_id = orderID, 
+                        _getLogger$info$track)).flush();
+                        return onShippingChange(data, function(_ref) {
+                            var orderID = _ref.orderID, facilitatorAccessToken = _ref.facilitatorAccessToken, buyerAccessToken = _ref.buyerAccessToken, partnerAttributionID = _ref.partnerAttributionID, forceRestAPI = _ref.forceRestAPI;
+                            return {
+                                resolve: function() {
+                                    return promise_ZalgoPromise.resolve();
+                                },
+                                reject: _ref.actions.reject || function() {
+                                    throw new Error("Missing reject action callback");
+                                },
+                                order: {
+                                    patch: function(data) {
+                                        void 0 === data && (data = {});
+                                        return patchOrder(orderID, data, {
+                                            facilitatorAccessToken: facilitatorAccessToken,
+                                            buyerAccessToken: buyerAccessToken,
+                                            partnerAttributionID: partnerAttributionID,
+                                            forceRestAPI: forceRestAPI
+                                        }).catch((function() {
+                                            throw new Error("Order could not be patched");
+                                        }));
+                                    }
+                                }
+                            };
+                        }({
+                            orderID: orderID,
+                            facilitatorAccessToken: facilitatorAccessToken,
+                            buyerAccessToken: buyerAccessToken,
+                            actions: actions,
+                            partnerAttributionID: partnerAttributionID,
+                            forceRestAPI: forceRestAPI
+                        }));
+                    }));
+                };
+            }({
+                onShippingChange: xprops.onShippingChange,
+                partnerAttributionID: partnerAttributionID,
+                upgradeLSAT: upgradeLSAT
+            }, {
+                facilitatorAccessToken: facilitatorAccessToken,
+                createOrder: createOrder
+            });
+            var onAuth = function(_ref) {
+                var facilitatorAccessToken = _ref.facilitatorAccessToken, createOrder = _ref.createOrder, upgradeLSAT = _ref.upgradeLSAT;
+                upgradeLSAT = upgradeLSAT || upgradeLSATExperiment.isEnabled();
+                return function(_ref2) {
+                    var accessToken = _ref2.accessToken;
+                    logger_getLogger().info("spb_onauth_access_token_" + (accessToken ? "present" : "not_present"));
+                    return promise_ZalgoPromise.try((function() {
+                        if (accessToken) {
+                            upgradeLSATExperiment.logStart();
+                            return upgradeLSAT ? createOrder().then((function(orderID) {
+                                return auth_upgradeFacilitatorAccessToken(facilitatorAccessToken, {
+                                    buyerAccessToken: accessToken,
+                                    orderID: orderID
+                                });
+                            })).then((function() {
+                                logger_getLogger().info("upgrade_lsat_success");
+                                return accessToken;
+                            })).catch((function(err) {
+                                logger_getLogger().warn("upgrade_lsat_failure", {
+                                    error: stringifyError(err)
+                                });
+                                return accessToken;
+                            })) : accessToken;
+                        }
+                    }));
+                };
+            }({
+                facilitatorAccessToken: facilitatorAccessToken,
+                createOrder: createOrder,
+                upgradeLSAT: upgradeLSAT
+            });
             return {
                 uid: uid,
                 env: env,
@@ -2832,38 +2861,10 @@ window.spb = function(modules) {
                 createOrder: createOrder,
                 createBillingAgreement: createBillingAgreement,
                 createSubscription: createSubscription,
-                onApprove: getOnApprove({
-                    onApprove: xprops.onApprove,
-                    intent: intent,
-                    onError: onError,
-                    partnerAttributionID: partnerAttributionID,
-                    upgradeLSAT: upgradeLSAT,
-                    clientAccessToken: clientAccessToken,
-                    vault: vault
-                }, {
-                    facilitatorAccessToken: facilitatorAccessToken,
-                    branded: branded,
-                    createOrder: createOrder
-                }),
-                onCancel: getOnCancel({
-                    onCancel: xprops.onCancel,
-                    onError: onError
-                }, {
-                    createOrder: createOrder
-                }),
-                onShippingChange: getOnShippingChange({
-                    onShippingChange: xprops.onShippingChange,
-                    partnerAttributionID: partnerAttributionID,
-                    upgradeLSAT: upgradeLSAT
-                }, {
-                    facilitatorAccessToken: facilitatorAccessToken,
-                    createOrder: createOrder
-                }),
-                onAuth: getOnAuth({
-                    facilitatorAccessToken: facilitatorAccessToken,
-                    createOrder: createOrder,
-                    upgradeLSAT: upgradeLSAT
-                }),
+                onApprove: onApprove,
+                onCancel: onCancel,
+                onShippingChange: onShippingChange,
+                onAuth: onAuth,
                 standaloneFundingSource: fundingSource,
                 paymentMethodNonce: paymentMethodNonce,
                 branded: branded,
@@ -6562,7 +6563,7 @@ window.spb = function(modules) {
             });
             var setupExportsTask = function(_ref) {
                 var props = _ref.props, isEnabled = _ref.isEnabled, facilitatorAccessToken = _ref.facilitatorAccessToken;
-                var _createOrder = props.createOrder, _onApprove = props.onApprove, onError = props.onError, onCancel = props.onCancel, onClick = props.onClick, commit = props.commit, intent = props.intent, fundingSource = props.fundingSource, currency = props.currency, onAuth = props.onAuth;
+                var _createOrder = props.createOrder, _onApprove = props.onApprove, onError = props.onError, onCancel = props.onCancel, onClick = props.onClick, commit = props.commit, intent = props.intent, fundingSource = props.fundingSource, currency = props.currency;
                 var fundingSources = querySelectorAll("[data-funding-source]").map((function(el) {
                     return el.getAttribute("data-funding-source");
                 })).filter(Boolean);
@@ -6608,8 +6609,9 @@ window.spb = function(modules) {
                                     facilitatorAccessToken: facilitatorAccessToken,
                                     orderID: orderID
                                 });
-                                return onAuth({
-                                    accessToken: buyerAccessToken
+                                return auth_upgradeFacilitatorAccessToken(facilitatorAccessToken, {
+                                    buyerAccessToken: buyerAccessToken,
+                                    orderID: orderID
                                 }).then((function(result) {
                                     return console.log("success!", result);
                                 })).catch((function(error) {
