@@ -38,7 +38,11 @@ export function callRestAPI<D, T>({ accessToken, method, url, data, headers } : 
             const issue = (hasDetails && body.details[0].issue) ? body.details[0].issue : 'Generic Error';
             const description = (hasDetails && body.details[0].description) ? body.details[0].description : 'no description';
             
-            throw new Error(`${ issue }: ${ description } (Corr ID: ${ responseHeaders[HEADERS.PAYPAL_DEBUG_ID] }`);
+            const error = new Error(`${ issue }: ${ description } (Corr ID: ${ responseHeaders[HEADERS.PAYPAL_DEBUG_ID] }`);
+            // $FlowFixMe
+            error.response = { status, headers: responseHeaders };
+
+            throw error;
         }
 
         return body;
@@ -53,7 +57,12 @@ type APIRequest = {|
     headers? : { [string] : string }
 |};
 
-export function callSmartAPI({ accessToken, url, method = 'get', headers: reqHeaders = {}, json } : APIRequest) : ZalgoPromise<Object> {
+export type APIResponse = {|
+    data : Object,
+    headers : {| [$Values<typeof HEADERS>] : string |}
+|};
+
+export function callSmartAPI({ accessToken, url, method = 'get', headers: reqHeaders = {}, json } : APIRequest) : ZalgoPromise<APIResponse> {
 
     reqHeaders[HEADERS.REQUESTED_BY] = SMART_PAYMENT_BUTTONS;
 
@@ -78,7 +87,7 @@ export function callSmartAPI({ accessToken, url, method = 'get', headers: reqHea
                 throw new Error(`Api: ${ url } returned ack: ${ body.ack } (Corr ID: ${ headers[HEADERS.PAYPAL_DEBUG_ID] })`);
             }
 
-            return body.data;
+            return { data: body.data, headers };
         });
 }
 

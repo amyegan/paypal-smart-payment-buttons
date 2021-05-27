@@ -6,7 +6,8 @@ import { ZalgoPromise } from 'zalgo-promise/src';
 import type { InstallmentsFlowType } from '@paypal/installments/src/types';
 
 import type { ContentType, LocaleType, ProxyWindow, Wallet, CheckoutFlowType, CardFieldsFlowType,
-    ThreeDomainSecureFlowType, MenuFlowType, ConnectOptions, PersonalizationType } from '../types';
+    ThreeDomainSecureFlowType, MenuFlowType, ConnectOptions, PersonalizationType, QRCodeType } from '../types';
+import type { XApplePaySessionConfigRequest } from '../payment-flows/types';
 import type { CreateOrder, XCreateOrder, CreateBillingAgreement, XCreateBillingAgreement, OnInit,
     XOnInit, OnApprove, XOnApprove, OnCancel, XOnCancel, OnClick, XOnClick, OnShippingChange, XOnShippingChange, XOnError,
     OnError, XGetPopupBridge, GetPopupBridge, XCreateSubscription, RememberFunding, GetPageURL, OnAuth, GetQueriedEligibleFunding
@@ -101,8 +102,9 @@ export type ButtonXProps = {|
 
     paymentMethodNonce : string,
     branded? : boolean,
-    userExperienceFlow : string
+    userExperienceFlow : string,
 
+    applePay : XApplePaySessionConfigRequest
 |};
 
 export type ButtonProps = {|
@@ -167,6 +169,9 @@ export type ButtonProps = {|
     onAuth : OnAuth,
 
     paymentMethodNonce : string,
+
+    applePay : XApplePaySessionConfigRequest,
+
     branded : boolean | null,
     userExperienceFlow : string
 |};
@@ -218,6 +223,7 @@ export function getProps({ facilitatorAccessToken, brandedDefault } : {| facilit
         branded,
         getQueriedEligibleFunding = () => ZalgoPromise.resolve([]),
         storageID,
+        applePay,
         userExperienceFlow
     } = xprops;
 
@@ -284,10 +290,10 @@ export function getProps({ facilitatorAccessToken, brandedDefault } : {| facilit
     const createOrder = getCreateOrder({ createOrder: xprops.createOrder, currency, intent, merchantID, partnerAttributionID }, { facilitatorAccessToken, createBillingAgreement, createSubscription });
 
     const onError = getOnError({ onError: xprops.onError });
-    const onApprove = getOnApprove({ onApprove: xprops.onApprove, intent, onError, partnerAttributionID, upgradeLSAT, clientAccessToken, vault }, { facilitatorAccessToken, branded, createOrder });
+    const onApprove = getOnApprove({ onApprove: xprops.onApprove, intent, onError, partnerAttributionID, upgradeLSAT, clientAccessToken, vault, userIDToken, clientID }, { facilitatorAccessToken, branded, createOrder });
     const onCancel = getOnCancel({ onCancel: xprops.onCancel, onError }, { createOrder });
-    const onShippingChange = getOnShippingChange({ onShippingChange: xprops.onShippingChange, partnerAttributionID, upgradeLSAT }, { facilitatorAccessToken, createOrder });
-    const onAuth = getOnAuth({ facilitatorAccessToken, createOrder, upgradeLSAT });
+    const onShippingChange = getOnShippingChange({ onShippingChange: xprops.onShippingChange, partnerAttributionID, clientID, upgradeLSAT }, { facilitatorAccessToken, createOrder });
+    const onAuth = getOnAuth({ facilitatorAccessToken, createOrder, upgradeLSAT, userIDToken, clientID });
 
     return {
         uid,
@@ -349,6 +355,7 @@ export function getProps({ facilitatorAccessToken, brandedDefault } : {| facilit
         paymentMethodNonce,
         branded,
         stickinessID,
+        applePay,
         userExperienceFlow
     };
 }
@@ -358,12 +365,13 @@ export type Components = {|
     CardFields : CardFieldsFlowType,
     ThreeDomainSecure : ThreeDomainSecureFlowType,
     Menu : MenuFlowType,
-    Installments : InstallmentsFlowType
+    Installments : InstallmentsFlowType,
+    QRCode : QRCodeType
 |};
 
 export function getComponents() : Components {
-    const { Checkout, CardFields, ThreeDomainSecure, Menu, Installments } = paypal;
-    return { Checkout, CardFields, ThreeDomainSecure, Menu, Installments };
+    const { Checkout, CardFields, ThreeDomainSecure, Menu, Installments, QRCode } = paypal;
+    return { Checkout, CardFields, ThreeDomainSecure, Menu, Installments, QRCode };
 }
 
 export type Config = {|
