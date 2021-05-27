@@ -1,6 +1,7 @@
 /* @flow */
 
 import { ZalgoPromise } from 'zalgo-promise/src';
+// eslint-disable-next-line no-unused-vars
 import { inlineMemoize, base64encode, request, noop } from 'belter/src';
 import { FUNDING } from '@paypal/sdk-constants/src';
 
@@ -92,7 +93,10 @@ export function upgradeFacilitatorAccessToken(facilitatorAccessToken : string, {
             }
         `,
         variables: { facilitatorAccessToken, buyerAccessToken, orderID }
-    }).then(noop);
+    }).then(result => {
+        // eslint-disable-next-line no-console
+        console.log('@@@ Did upgrade succeed?', result);
+    });
 }
 
 export function exchangeAccessTokenForAuthCode(buyerAccessToken : string) : ZalgoPromise<string> {
