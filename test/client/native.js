@@ -105,6 +105,10 @@ describe('native ios cases', () => {
                             throw new Error(`Expected channel to be passed in url`);
                         }
 
+                        if (!redirectQuery.buyerCountry) {
+                            throw new Error(`Expected buyerCountry to be passed in url`);
+                        }
+
                         sessionUID = redirectQuery.sessionUID;
 
                         postRobotMock.receive({
@@ -116,7 +120,7 @@ describe('native ios cases', () => {
                 }
             });
 
-            const { expect: expectSocket, onApprove } = getNativeFirebaseMock({
+            const { expect: expectSocket, onInit, onApprove } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -125,7 +129,7 @@ describe('native ios cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('extraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         mockWindow.expectClose();
                         ZalgoPromise.delay(50).then(onApprove);
                         postRobotMock.receive({
@@ -170,6 +174,7 @@ describe('native ios cases', () => {
             });
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onApprove.await();
 
             await mockWebSocketServer.done();
@@ -417,7 +422,7 @@ describe('native ios cases', () => {
                 }
             });
 
-            const { expect: expectSocket, onApprove } = getNativeFirebaseMock({
+            const { expect: expectSocket, onApprove, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -426,7 +431,7 @@ describe('native ios cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('extraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         mockWindow.expectClose();
                         ZalgoPromise.delay(50).then(onApprove);
                         postRobotMock.receive({
@@ -471,6 +476,7 @@ describe('native ios cases', () => {
             });
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onApprove.await();
 
             window.xprops.onApprove = mockAsyncProp(expect('onApprove', (innerData) => {
@@ -484,6 +490,7 @@ describe('native ios cases', () => {
             }));
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onApprove.await();
 
             await mockWebSocketServer.done();
@@ -749,7 +756,7 @@ describe('native ios cases', () => {
                 }
             });
 
-            const { expect: expectSocket, onCancel } = getNativeFirebaseMock({
+            const { expect: expectSocket, onCancel, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -758,7 +765,7 @@ describe('native ios cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('extraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         mockWindow.expectClose();
                         ZalgoPromise.delay(50).then(onCancel);
                         postRobotMock.receive({
@@ -798,6 +805,7 @@ describe('native ios cases', () => {
             });
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onCancel.await();
 
             await mockWebSocketServer.done();
@@ -910,7 +918,7 @@ describe('native ios cases', () => {
                 }
             });
 
-            const { expect: expectSocket } = getNativeFirebaseMock({
+            const { expect: expectSocket, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -919,7 +927,7 @@ describe('native ios cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('extraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         mockWindow.expectClose();
                         ZalgoPromise.delay(50).then(() => popupWin.close());
                     }
@@ -954,6 +962,7 @@ describe('native ios cases', () => {
             });
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onCancel.await();
 
             await mockWebSocketServer.done();
@@ -1057,7 +1066,7 @@ describe('native ios cases', () => {
                 }
             });
 
-            const { expect: expectSocket, onError } = getNativeFirebaseMock({
+            const { expect: expectSocket, onError, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -1066,7 +1075,7 @@ describe('native ios cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('extraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         mockWindow.expectClose();
                         ZalgoPromise.delay(50).then(onError);
                         postRobotMock.receive({
@@ -1102,6 +1111,7 @@ describe('native ios cases', () => {
             });
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onError.await();
 
             await mockWebSocketServer.done();
@@ -1216,7 +1226,7 @@ describe('native ios cases', () => {
             const orderID = generateOrderID();
             const payerID = 'XXYYZZ123456';
 
-            const { expect: expectSocket, onApprove } = getNativeFirebaseMock({
+            const { expect: expectSocket, onApprove, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -1225,7 +1235,7 @@ describe('native ios cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('extraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         mockWindow.expectClose();
                         ZalgoPromise.delay(50).then(onApprove);
                         postRobotMock.receive({
@@ -1271,6 +1281,7 @@ describe('native ios cases', () => {
             });
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onApprove.await();
 
             await mockWebSocketServer.done();
@@ -1844,7 +1855,7 @@ describe('native ios cases', () => {
             const orderID = generateOrderID();
             const payerID = 'XXYYZZ123456';
 
-            const { expect: expectSocket, onApprove } = getNativeFirebaseMock({
+            const { expect: expectSocket, onApprove, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -1853,7 +1864,7 @@ describe('native ios cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('extraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         mockWindow.expectClose();
                         ZalgoPromise.delay(50).then(onApprove);
                         postRobotMock.receive({
@@ -1901,6 +1912,7 @@ describe('native ios cases', () => {
             });
 
             await clickButton(FUNDING.VENMO);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onApprove.await();
 
             await mockWebSocketServer.done();
@@ -2017,7 +2029,7 @@ describe('native ios cases', () => {
             let gotOnApproveResponse = false;
             let onApproveDonePromise;
 
-            const { expect: expectSocket, onApprove } = getNativeFirebaseMock({
+            const { expect: expectSocket, onApprove, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -2026,7 +2038,7 @@ describe('native ios cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('firebaseExtraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         mockWindow.expectClose();
                         ZalgoPromise.delay(50).then(onApprove);
 
@@ -2062,11 +2074,11 @@ describe('native ios cases', () => {
 
             window.xprops.onCancel = avoid('onCancel');
 
-            window.xprops.onApprove = expectError('onApprove', () => {
+            window.xprops.onApprove = mockAsyncProp(expectError('onApprove', () => {
                 return ZalgoPromise.try(() => {
                     throw err;
                 });
-            });
+            }));
 
             window.xprops.onError = mockAsyncProp(expect('onError', (errObj) => {
                 if (!errObj || !(errObj instanceof Error)) {
@@ -2088,6 +2100,7 @@ describe('native ios cases', () => {
             });
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
 
             try {
                 await window.xprops.onApprove.await();
@@ -2213,7 +2226,7 @@ describe('native ios cases', () => {
                 }
             });
 
-            const { expect: expectSocket, onApprove } = getNativeFirebaseMock({
+            const { expect: expectSocket, onApprove, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -2222,7 +2235,7 @@ describe('native ios cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('extraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         mockWindow.expectClose();
                         ZalgoPromise.delay(50).then(onApprove);
                         postRobotMock.receive({
@@ -2271,6 +2284,7 @@ describe('native ios cases', () => {
             });
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onApprove.await();
 
             await mockWebSocketServer.done();
@@ -2382,7 +2396,7 @@ describe('native chrome cases', () => {
                 }
             });
 
-            const { expect: expectSocket, onApprove } = getNativeFirebaseMock({
+            const { expect: expectSocket, onApprove, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -2391,7 +2405,7 @@ describe('native chrome cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('extraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         ZalgoPromise.delay(50).then(onApprove);
                     }
                 })
@@ -2430,6 +2444,7 @@ describe('native chrome cases', () => {
             });
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onApprove.await();
 
             await mockWebSocketServer.done();
@@ -2674,7 +2689,7 @@ describe('native chrome cases', () => {
                 }
             });
 
-            const { expect: expectSocket, onApprove } = getNativeFirebaseMock({
+            const { expect: expectSocket, onApprove, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -2683,7 +2698,7 @@ describe('native chrome cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('extraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         ZalgoPromise.delay(50).then(onApprove);
                     }
                 })
@@ -2722,6 +2737,7 @@ describe('native chrome cases', () => {
             });
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onApprove.await();
 
             window.xprops.onApprove = mockAsyncProp(expect('onApprove', (innerData) => {
@@ -2735,6 +2751,7 @@ describe('native chrome cases', () => {
             }));
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onApprove.await();
 
             await mockWebSocketServer.done();
@@ -2997,7 +3014,7 @@ describe('native chrome cases', () => {
                 }
             });
 
-            const { expect: expectSocket, onCancel } = getNativeFirebaseMock({
+            const { expect: expectSocket, onCancel, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -3006,7 +3023,7 @@ describe('native chrome cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('extraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         ZalgoPromise.delay(50).then(onCancel);
                     }
                 })
@@ -3040,6 +3057,7 @@ describe('native chrome cases', () => {
             });
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onCancel.await();
 
             await mockWebSocketServer.done();
@@ -3140,7 +3158,7 @@ describe('native chrome cases', () => {
                 }
             });
 
-            const { expect: expectSocket, onError } = getNativeFirebaseMock({
+            const { expect: expectSocket, onError, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -3149,7 +3167,7 @@ describe('native chrome cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('extraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         ZalgoPromise.delay(50).then(onError);
                     }
                 })
@@ -3179,6 +3197,7 @@ describe('native chrome cases', () => {
             });
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onError.await();
 
             await mockWebSocketServer.done();
@@ -3290,7 +3309,7 @@ describe('native chrome cases', () => {
             const orderID = generateOrderID();
             const payerID = 'XXYYZZ123456';
 
-            const { expect: expectSocket, onApprove } = getNativeFirebaseMock({
+            const { expect: expectSocket, onApprove, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -3299,7 +3318,7 @@ describe('native chrome cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('extraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         ZalgoPromise.delay(50).then(onApprove);
                     }
                 })
@@ -3339,6 +3358,7 @@ describe('native chrome cases', () => {
             });
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onApprove.await();
 
             await mockWebSocketServer.done();
@@ -3909,7 +3929,7 @@ describe('native chrome cases', () => {
             const orderID = generateOrderID();
             const payerID = 'XXYYZZ123456';
 
-            const { expect: expectSocket, onApprove } = getNativeFirebaseMock({
+            const { expect: expectSocket, onApprove, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -3918,7 +3938,7 @@ describe('native chrome cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('extraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         ZalgoPromise.delay(50).then(onApprove);
                     }
                 })
@@ -3960,6 +3980,7 @@ describe('native chrome cases', () => {
             });
 
             await clickButton(FUNDING.VENMO);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onApprove.await();
 
             await mockWebSocketServer.done();
@@ -4073,7 +4094,7 @@ describe('native chrome cases', () => {
             let gotOnApproveResponse = false;
             let onApproveDonePromise;
 
-            const { expect: expectSocket, onApprove } = getNativeFirebaseMock({
+            const { expect: expectSocket, onApprove, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -4082,7 +4103,7 @@ describe('native chrome cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('firebaseExtraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         ZalgoPromise.delay(50).then(onApprove);
 
                         onApproveDonePromise = ZalgoPromise.delay(200)
@@ -4111,11 +4132,11 @@ describe('native chrome cases', () => {
 
             window.xprops.onCancel = avoid('onCancel');
 
-            window.xprops.onApprove = expectError('onApprove', () => {
+            window.xprops.onApprove = mockAsyncProp(expectError('onApprove', () => {
                 return ZalgoPromise.delay(50).then(() => {
                     throw err;
                 });
-            });
+            }));
 
             window.xprops.onError = mockAsyncProp(expect('onError', (errObj) => {
                 if (!errObj || !(errObj instanceof Error)) {
@@ -4137,6 +4158,7 @@ describe('native chrome cases', () => {
             });
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
 
             try {
                 await window.xprops.onApprove.await();
@@ -4259,7 +4281,7 @@ describe('native chrome cases', () => {
                 }
             });
 
-            const { expect: expectSocket, onApprove } = getNativeFirebaseMock({
+            const { expect: expectSocket, onApprove, onInit } = getNativeFirebaseMock({
                 getSessionUID: () => {
                     if (!sessionUID) {
                         throw new Error(`Session UID not present`);
@@ -4268,7 +4290,7 @@ describe('native chrome cases', () => {
                     return sessionUID;
                 },
                 extraHandler: expect('extraHandler', ({ message_name, message_type }) => {
-                    if (message_name === 'setProps' && message_type === 'request') {
+                    if (message_name === 'onInit' && message_type === 'request') {
                         ZalgoPromise.delay(50).then(onApprove);
                     }
                 })
@@ -4311,6 +4333,7 @@ describe('native chrome cases', () => {
             });
 
             await clickButton(FUNDING.PAYPAL);
+            await ZalgoPromise.delay(50).then(onInit);
             await window.xprops.onApprove.await();
 
             await mockWebSocketServer.done();
