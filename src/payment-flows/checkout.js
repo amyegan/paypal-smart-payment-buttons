@@ -278,7 +278,6 @@ function initCheckout({ props, components, serviceData, payment, config } : Init
                         });
                     }
                 }).then(accessToken => {
-                    setBuyerAccessToken(accessToken);
                     if (accessToken && (buyerIntent === BUYER_INTENT.PAY || buyerIntent === BUYER_INTENT.PAY_WITH_DIFFERENT_FUNDING_SHIPPING)) {
                         return exchangeAccessTokenForAuthCode(accessToken);
                     }
@@ -331,6 +330,8 @@ function initCheckout({ props, components, serviceData, payment, config } : Init
             onApprove: ({ payerID, paymentID, billingToken, subscriptionID, authCode }) => {
                 approved = true;
                 getLogger().info(`spb_onapprove_access_token_${ buyerAccessToken ? 'present' : 'not_present' }`).flush();
+
+                setBuyerAccessToken(buyerAccessToken);
 
                 // eslint-disable-next-line no-use-before-define
                 return onApprove({ payerID, paymentID, billingToken, subscriptionID, buyerAccessToken, authCode }, { restart })
