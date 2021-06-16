@@ -70,6 +70,7 @@ export function setupExports({ props, isEnabled, facilitatorAccessToken } : Expo
                 // eslint-disable-next-line no-shadow
                 upgradeFacilitatorAccessToken: (facilitatorAccessToken, orderID) => {
                     const buyerAccessToken = getBuyerAccessToken();
+                    console.log('@@@ buyer access token', buyerAccessToken);
                     
                     if (!buyerAccessToken) {
                         getLogger().error('lsat_upgrade_error', { err: 'buyer access token not found' });
