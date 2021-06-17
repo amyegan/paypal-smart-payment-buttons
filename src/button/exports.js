@@ -70,6 +70,7 @@ export function setupExports({ props, isEnabled, facilitatorAccessToken } : Expo
                 // eslint-disable-next-line no-shadow
                 upgradeFacilitatorAccessToken: (facilitatorAccessToken, orderID) => {
                     const buyerAccessToken = getBuyerAccessToken();
+                    // eslint-disable-next-line no-console
                     console.log('@@@ buyer access token', buyerAccessToken);
                     
                     if (!buyerAccessToken) {
