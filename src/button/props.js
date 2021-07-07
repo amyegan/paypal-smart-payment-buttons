@@ -101,6 +101,7 @@ export type ButtonXProps = {|
 
     paymentMethodNonce : string,
     branded? : boolean,
+    merchantAccessToken? : string,
     userExperienceFlow : string,
 
     applePay : XApplePaySessionConfigRequest
@@ -168,6 +169,7 @@ export type ButtonProps = {|
     onAuth : OnAuth,
 
     paymentMethodNonce : string,
+    merchantAccessToken : ?string,
 
     applePay : XApplePaySessionConfigRequest,
 
@@ -218,6 +220,7 @@ export function getProps({ facilitatorAccessToken, brandedDefault } : {| facilit
         wallet,
         paymentMethodNonce,
         branded,
+        merchantAccessToken,
         getQueriedEligibleFunding = () => ZalgoPromise.resolve([]),
         storageID,
         applePay,
@@ -351,6 +354,7 @@ export function getProps({ facilitatorAccessToken, brandedDefault } : {| facilit
         standaloneFundingSource: fundingSource,
         paymentMethodNonce,
         branded,
+        merchantAccessToken,
         stickinessID,
         applePay,
         userExperienceFlow
