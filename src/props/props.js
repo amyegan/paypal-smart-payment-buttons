@@ -95,6 +95,7 @@ export type XProps = {|
     paymentMethodToken : ?string,
     branded? : boolean,
     userExperienceFlow : string,
+    merchantAccessToken? : string,
 
     applePay : XApplePaySessionConfigRequest
 |};
@@ -159,6 +160,7 @@ export type Props = {|
     onAuth : OnAuth,
 
     paymentMethodToken : ?string,
+    merchantAccessToken? : string,
 
     applePay : XApplePaySessionConfigRequest,
 
