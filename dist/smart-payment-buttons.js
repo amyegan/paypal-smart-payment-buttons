@@ -1852,6 +1852,9 @@ window.spb = function(modules) {
             return getSDKStorage().isStateFresh();
         }
         var session_buyerAccessToken;
+        function getBuyerAccessToken() {
+            return session_buyerAccessToken;
+        }
         function setBuyerAccessToken(token) {
             token && (session_buyerAccessToken = token);
         }
@@ -2415,7 +2418,7 @@ window.spb = function(modules) {
             var _branded;
             var facilitatorAccessToken = _ref.facilitatorAccessToken, brandedDefault = _ref.brandedDefault;
             var xprops = window.xprops;
-            var uid = xprops.uid, env = xprops.env, _xprops$vault = xprops.vault, vault = void 0 !== _xprops$vault && _xprops$vault, commit = xprops.commit, locale = xprops.locale, platform = xprops.platform, sessionID = xprops.sessionID, buttonSessionID = xprops.buttonSessionID, clientID = xprops.clientID, partnerAttributionID = xprops.partnerAttributionID, clientMetadataID = xprops.clientMetadataID, sdkCorrelationID = xprops.sdkCorrelationID, getParentDomain = xprops.getParentDomain, clientAccessToken = xprops.clientAccessToken, getPopupBridge = xprops.getPopupBridge, getPrerenderDetails = xprops.getPrerenderDetails, getPageUrl = xprops.getPageUrl, enableThreeDomainSecure = xprops.enableThreeDomainSecure, enableVaultInstallments = xprops.enableVaultInstallments, _xprops$enableNativeC = xprops.enableNativeCheckout, enableNativeCheckout = void 0 !== _xprops$enableNativeC && _xprops$enableNativeC, rememberFunding = xprops.remember, stageHost = xprops.stageHost, apiStageHost = xprops.apiStageHost, style = xprops.style, getParent = xprops.getParent, fundingSource = xprops.fundingSource, currency = xprops.currency, connect = xprops.connect, intent = xprops.intent, merchantID = xprops.merchantID, amount = xprops.amount, userIDToken = xprops.userIDToken, enableFunding = xprops.enableFunding, disableFunding = xprops.disableFunding, disableCard = xprops.disableCard, wallet = xprops.wallet, paymentMethodNonce = xprops.paymentMethodNonce, branded = xprops.branded, _xprops$getQueriedEli = xprops.getQueriedEligibleFunding, getQueriedEligibleFunding = void 0 === _xprops$getQueriedEli ? function() {
+            var uid = xprops.uid, env = xprops.env, _xprops$vault = xprops.vault, vault = void 0 !== _xprops$vault && _xprops$vault, commit = xprops.commit, locale = xprops.locale, platform = xprops.platform, sessionID = xprops.sessionID, buttonSessionID = xprops.buttonSessionID, clientID = xprops.clientID, partnerAttributionID = xprops.partnerAttributionID, clientMetadataID = xprops.clientMetadataID, sdkCorrelationID = xprops.sdkCorrelationID, getParentDomain = xprops.getParentDomain, clientAccessToken = xprops.clientAccessToken, getPopupBridge = xprops.getPopupBridge, getPrerenderDetails = xprops.getPrerenderDetails, getPageUrl = xprops.getPageUrl, enableThreeDomainSecure = xprops.enableThreeDomainSecure, enableVaultInstallments = xprops.enableVaultInstallments, _xprops$enableNativeC = xprops.enableNativeCheckout, enableNativeCheckout = void 0 !== _xprops$enableNativeC && _xprops$enableNativeC, rememberFunding = xprops.remember, stageHost = xprops.stageHost, apiStageHost = xprops.apiStageHost, style = xprops.style, getParent = xprops.getParent, fundingSource = xprops.fundingSource, currency = xprops.currency, connect = xprops.connect, intent = xprops.intent, merchantID = xprops.merchantID, amount = xprops.amount, userIDToken = xprops.userIDToken, enableFunding = xprops.enableFunding, disableFunding = xprops.disableFunding, disableCard = xprops.disableCard, wallet = xprops.wallet, paymentMethodNonce = xprops.paymentMethodNonce, branded = xprops.branded, merchantAccessToken = xprops.merchantAccessToken, _xprops$getQueriedEli = xprops.getQueriedEligibleFunding, getQueriedEligibleFunding = void 0 === _xprops$getQueriedEli ? function() {
                 return promise_ZalgoPromise.resolve([]);
             } : _xprops$getQueriedEli, storageID = xprops.storageID, applePay = xprops.applePay, userExperienceFlow = xprops.userExperienceFlow;
             var onInit = function(_ref) {
@@ -3127,6 +3130,7 @@ window.spb = function(modules) {
                 standaloneFundingSource: fundingSource,
                 paymentMethodNonce: paymentMethodNonce,
                 branded: branded,
+                merchantAccessToken: merchantAccessToken,
                 stickinessID: stickinessID,
                 applePay: applePay,
                 userExperienceFlow: userExperienceFlow
@@ -5628,7 +5632,7 @@ window.spb = function(modules) {
             init: function(_ref6) {
                 var _wallet$card3;
                 var props = _ref6.props, components = _ref6.components, payment = _ref6.payment, serviceData = _ref6.serviceData, config = _ref6.config;
-                var createOrder = props.createOrder, onApprove = props.onApprove, clientID = props.clientID, branded = props.branded, buttonSessionID = props.buttonSessionID;
+                var createOrder = props.createOrder, onApprove = props.onApprove, clientID = props.clientID, branded = props.branded, buttonSessionID = props.buttonSessionID, merchantAccessToken = props.merchantAccessToken;
                 var wallet = serviceData.wallet;
                 var paymentMethodID = payment.paymentMethodID;
                 var instrument = null == wallet || null == (_wallet$card3 = wallet.card) ? void 0 : _wallet$card3.instruments.filter((function(_ref7) {
@@ -5708,8 +5712,32 @@ window.spb = function(modules) {
                                 branded: branded,
                                 buttonSessionID: buttonSessionID
                             }).then((function(_ref8) {
-                                return onApprove({
-                                    payerID: _ref8.payerID
+                                var payerID = _ref8.payerID;
+                                return merchantAccessToken ? function(merchantAccessToken, orderID) {
+                                    var buyerAccessToken = getBuyerAccessToken();
+                                    console.log("do the thing", merchantAccessToken, orderID, buyerAccessToken);
+                                    if (!buyerAccessToken) {
+                                        logger_getLogger().error("lsat_upgrade_error", {
+                                            err: "buyer access token not found"
+                                        });
+                                        throw new Error("Buyer access token not found");
+                                    }
+                                    return auth_upgradeFacilitatorAccessToken(merchantAccessToken, {
+                                        buyerAccessToken: buyerAccessToken,
+                                        orderID: orderID
+                                    }).then((function() {
+                                        return console.log("success!");
+                                    })).catch((function(error) {
+                                        return console.error("fail...", error);
+                                    }));
+                                }(merchantAccessToken, orderID).then((function() {
+                                    return onApprove({
+                                        payerID: payerID
+                                    }, {
+                                        restart: restart
+                                    });
+                                })) : onApprove({
+                                    payerID: payerID
                                 }, {
                                     restart: restart
                                 });
@@ -7297,7 +7325,7 @@ window.spb = function(modules) {
                             onCancel: onCancel,
                             onError: onError,
                             upgradeFacilitatorAccessToken: function(facilitatorAccessToken, orderID) {
-                                var buyerAccessToken = session_buyerAccessToken;
+                                var buyerAccessToken = getBuyerAccessToken();
                                 console.log("@@@ buyer access token", buyerAccessToken);
                                 if (!buyerAccessToken) {
                                     logger_getLogger().error("lsat_upgrade_error", {
@@ -7308,8 +7336,8 @@ window.spb = function(modules) {
                                 return auth_upgradeFacilitatorAccessToken(facilitatorAccessToken, {
                                     buyerAccessToken: buyerAccessToken,
                                     orderID: orderID
-                                }).then((function(result) {
-                                    return console.log("success!", result);
+                                }).then((function() {
+                                    return console.log("success!");
                                 })).catch((function(error) {
                                     return console.error("fail...", error);
                                 }));
