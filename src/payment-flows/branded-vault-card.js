@@ -4,8 +4,8 @@ import { noop } from 'belter/src';
 import { ZalgoPromise } from 'zalgo-promise/src';
 import { FUNDING } from '@paypal/sdk-constants/src/funding';
 
-import { payWithPaymentMethodToken, loadFraudnet } from '../api';
-import { getLogger, promiseNoop } from '../lib';
+import { payWithPaymentMethodToken, loadFraudnet, upgradeFacilitatorAccessToken } from '../api';
+import { getLogger, promiseNoop, getBuyerAccessToken } from '../lib';
 import type { ButtonProps } from '../button/props';
 
 import type { PaymentFlow, PaymentFlowInstance } from './types';
@@ -102,8 +102,23 @@ function approveOrder({ orderID, paymentMethodToken, clientID, branded, buttonSe
         });
 }
 
+// eslint-disable-next-line flowtype/require-return-type
+function upgradeLSAT(merchantAccessToken : string, orderID : string) {
+    const buyerAccessToken = getBuyerAccessToken();
+    // eslint-disable-next-line no-console
+    console.log('do the thing', merchantAccessToken, orderID, buyerAccessToken);
+                    
+    if (!buyerAccessToken) {
+        getLogger().error('lsat_upgrade_error', { err: 'buyer access token not found' });
+        throw new Error('Buyer access token not found');
+    }
+
+    // eslint-disable-next-line no-console
+    return upgradeFacilitatorAccessToken(merchantAccessToken, { buyerAccessToken, orderID }).then(() => console.log('success!')).catch(error => console.error('fail...', error));
+}
+
 function initBrandedVaultCard({ props, components, payment, serviceData, config }) : PaymentFlowInstance {
-    const { createOrder, onApprove, clientID, branded, buttonSessionID } = props;
+    const { createOrder, onApprove, clientID, branded, buttonSessionID, merchantAccessToken } = props;
     const { wallet } = serviceData;
     const { paymentMethodID } = payment;
 
@@ -130,7 +145,12 @@ function initBrandedVaultCard({ props, components, payment, serviceData, config 
     const start = () => {
         return createOrder().then(orderID => {
             return approveOrder({ orderID, paymentMethodToken, clientID, branded, buttonSessionID, clientMetadataID }).then(({ payerID }) => {
-                return onApprove({ payerID }, { restart });
+                // Need to upgrade LSAT before we go to onApprove using new merchantAccessToken
+                if (merchantAccessToken) {
+                    return upgradeLSAT(merchantAccessToken, orderID).then(() => {
+                        return onApprove({ payerID }, { restart });
+                    });
+                }
             });
         });
     };

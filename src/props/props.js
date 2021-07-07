@@ -211,7 +211,8 @@ export function getProps({ facilitatorAccessToken, branded } : {| facilitatorAcc
         getQueriedEligibleFunding = () => ZalgoPromise.resolve([]),
         storageID,
         applePay,
-        userExperienceFlow
+        userExperienceFlow,
+        merchantAccessToken
     } = xprops;
 
     const onInit = getOnInit({ onInit: xprops.onInit });
@@ -296,7 +297,8 @@ export function getProps({ facilitatorAccessToken, branded } : {| facilitatorAcc
         branded,
         stickinessID,
         applePay,
-        userExperienceFlow
+        userExperienceFlow,
+        merchantAccessToken
     };
 }
 
