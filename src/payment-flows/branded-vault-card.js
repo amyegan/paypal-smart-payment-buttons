@@ -118,7 +118,7 @@ function upgradeLSAT(merchantAccessToken : string, orderID : string) {
 }
 
 function initBrandedVaultCard({ props, components, payment, serviceData, config }) : PaymentFlowInstance {
-    const { createOrder, onApprove, clientID, branded, buttonSessionID, merchantAccessToken } = props;
+    const { createOrder, onApprove, clientID, branded, buttonSessionID, merchantAccessToken, userExperienceFlow } = props;
     const { wallet } = serviceData;
     const { paymentMethodID } = payment;
 
@@ -146,7 +146,7 @@ function initBrandedVaultCard({ props, components, payment, serviceData, config 
         return createOrder().then(orderID => {
             return approveOrder({ orderID, paymentMethodToken, clientID, branded, buttonSessionID, clientMetadataID }).then(({ payerID }) => {
                 // Need to upgrade LSAT before we go to onApprove using new merchantAccessToken
-                if (merchantAccessToken) {
+                if (merchantAccessToken && userExperienceFlow === 'HONEY_MODAL') {
                     return upgradeLSAT(merchantAccessToken, orderID).then(() => {
                         return onApprove({ payerID }, { restart });
                     });

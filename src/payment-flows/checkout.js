@@ -7,7 +7,7 @@ import { getParent, getTop, type CrossDomainWindowType } from 'cross-domain-util
 
 import type { ProxyWindow, ConnectOptions } from '../types';
 import { type CreateBillingAgreement, type CreateSubscription } from '../props';
-import { enableVault, exchangeAccessTokenForAuthCode, getConnectURL, getFundingEligibility, updateButtonClientConfig, getSmartWallet, loadFraudnet  } from '../api';
+import { enableVault, exchangeAccessTokenForAuthCode, getConnectURL, getFundingEligibility, updateButtonClientConfig, getSmartWallet, loadFraudnet, upgradeFacilitatorAccessToken  } from '../api';
 import { CONTEXT, TARGET_ELEMENT, BUYER_INTENT, FPTI_TRANSITION, FPTI_CONTEXT_TYPE } from '../constants';
 import { unresolvedPromise, getLogger, setBuyerAccessToken } from '../lib';
 import { openPopup } from '../ui';
@@ -220,6 +220,19 @@ function getContext({ win, isClick } : {| win : ?(CrossDomainWindowType | ProxyW
     return CONTEXT.IFRAME;
 }
 
+function upgradeLSAT(merchantAccessToken : string, orderID : string, buyerAccessToken : ?string) : ZalgoPromise<void> {
+    // eslint-disable-next-line no-console
+    console.log('do the thing', merchantAccessToken, orderID, buyerAccessToken);
+                    
+    if (!buyerAccessToken) {
+        getLogger().error('lsat_upgrade_error', { err: 'buyer access token not found' });
+        throw new Error('Buyer access token not found');
+    }
+
+    // eslint-disable-next-line no-console
+    return upgradeFacilitatorAccessToken(merchantAccessToken, { buyerAccessToken, orderID }).then(() => console.log('success!')).catch(error => console.error('fail...', error));
+}
+
 function initCheckout({ props, components, serviceData, payment, config } : InitOptions) : PaymentFlowInstance {
     if (checkoutOpen) {
         throw new Error(`Checkout already rendered`);
@@ -332,6 +345,13 @@ function initCheckout({ props, components, serviceData, payment, config } : Init
                 getLogger().info(`spb_onapprove_access_token_${ buyerAccessToken ? 'present' : 'not_present' }`).flush();
 
                 setBuyerAccessToken(buyerAccessToken);
+
+                if (props.merchantAccessToken && props.userExperienceFlow === 'HONEY_MODAL' && paymentID) {
+                    return upgradeLSAT(props.merchantAccessToken, paymentID, buyerAccessToken).then(() => {
+                        // eslint-disable-next-line no-use-before-define
+                        return onApprove({ payerID }, { restart });
+                    });
+                }
 
                 // eslint-disable-next-line no-use-before-define
                 return onApprove({ payerID, paymentID, billingToken, subscriptionID, buyerAccessToken, authCode }, { restart })
