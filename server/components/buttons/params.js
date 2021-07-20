@@ -3,10 +3,10 @@
 
 import type { FundingEligibilityType } from '@paypal/sdk-constants/src/types';
 import { ENV, COUNTRY, CURRENCY, INTENT, COMMIT, VAULT, CARD, FUNDING, DEFAULT_COUNTRY,
-    COUNTRY_LANGS, PLATFORM, FUNDING_PRODUCTS, SDK_QUERY_KEYS } from '@paypal/sdk-constants';
+    COUNTRY_LANGS, PLATFORM, FUNDING_PRODUCTS, SDK_QUERY_KEYS, ERROR_CODE } from '@paypal/sdk-constants';
 import { values, constHas } from 'belter';
 
-import { HTTP_HEADER, ERROR_CODE } from '../../config';
+import { HTTP_HEADER } from '../../config';
 import type { ExpressRequest, ExpressResponse, LocaleType, RiskData } from '../../types';
 import { makeError, getCSPNonce } from '../../lib';
 
@@ -43,6 +43,7 @@ type ButtonInputParams = {|
     riskData? : string,
     platform : ?$Values<typeof PLATFORM>,
     paymentMethodNonce? : ?string,
+    paymentMethodToken? : ?string,
     branded? : boolean,
     fundingSource : $Values<typeof FUNDING>,
     merchantAccessToken? : ?string
@@ -82,7 +83,7 @@ type ButtonParams = {|
     correlationID : string,
     platform : $Values<typeof PLATFORM>,
     cookies : string,
-    paymentMethodNonce : ?string,
+    paymentMethodToken : ?string,
     branded : ?boolean,
     fundingSource : $Values<typeof FUNDING>,
     merchantAccessToken? : ?string
@@ -158,11 +159,11 @@ function getFundingEligibilityParam(req : ExpressRequest) : FundingEligibilityTy
                         if (typeof vendorEligibilityInput.eligible === 'boolean') {
                             vendorEligibility.eligible = vendorEligibilityInput.eligible;
                         }
-        
+
                         if (typeof vendorEligibilityInput.branded === 'boolean') {
                             vendorEligibility.branded = vendorEligibilityInput.branded;
                         }
-        
+
                         if (typeof vendorEligibilityInput.vaultable === 'boolean') {
                             vendorEligibility.vaultable = vendorEligibilityInput.vaultable;
                         }
@@ -199,14 +200,14 @@ function getFundingEligibilityParam(req : ExpressRequest) : FundingEligibilityTy
 }
 
 
-function getPaymentMethodNonce(req : ExpressRequest) : ?string {
-    const paymentMethodNonce = req.query && req.query.paymentMethodNonce;
+function getPaymentMethodToken(req : ExpressRequest) : ?string {
+    const paymentMethodToken = req.query && (req.query.paymentMethodNonce || req.query.paymentMethodToken);
 
-    if (!paymentMethodNonce || typeof paymentMethodNonce !== 'string') {
+    if (!paymentMethodToken || typeof paymentMethodToken !== 'string') {
         return;
     }
 
-    return paymentMethodNonce;
+    return paymentMethodToken;
 }
 
 
@@ -324,7 +325,7 @@ export function getButtonParams(params : ButtonInputParams, req : ExpressRequest
     const buyerCountry = getBuyerCountry(req, params);
 
     const basicFundingEligibility = getFundingEligibilityParam(req);
-    const paymentMethodNonce = getPaymentMethodNonce(req);
+    const paymentMethodToken = getPaymentMethodToken(req);
     const merchantAccessToken = getMerchantAccessToken(req);
 
     const branded = getBranded(params);
@@ -362,7 +363,7 @@ export function getButtonParams(params : ButtonInputParams, req : ExpressRequest
         correlationID,
         platform,
         cookies,
-        paymentMethodNonce,
+        paymentMethodToken,
         branded,
         merchantAccessToken
     };
@@ -392,7 +393,7 @@ export function getButtonPreflightParams(params : ButtonPreflightInputParams) : 
         [ SPB_QUERY_KEYS.USER_ID_TOKEN ]: userIDToken,
         [ SPB_QUERY_KEYS.AMOUNT ]: amount = '0.00'
     } = params;
-    
+
     if (merchantID) {
         merchantID = merchantID.split(',');
     } else {

@@ -67,19 +67,15 @@ export function setupExports({ props, isEnabled, facilitatorAccessToken } : Expo
                 },
                 onCancel,
                 onError,
-                // eslint-disable-next-line no-shadow
-                upgradeFacilitatorAccessToken: (facilitatorAccessToken, orderID) => {
+                upgradeFacilitatorAccessToken: ({ merchantAccessToken, orderID }) => {
                     const buyerAccessToken = getBuyerAccessToken();
-                    // eslint-disable-next-line no-console
-                    console.log('@@@ buyer access token', buyerAccessToken);
                     
                     if (!buyerAccessToken) {
                         getLogger().error('lsat_upgrade_error', { err: 'buyer access token not found' });
                         throw new Error('Buyer access token not found');
                     }
 
-                    // eslint-disable-next-line no-console
-                    return upgradeFacilitatorAccessToken(facilitatorAccessToken, { buyerAccessToken, orderID }).then(() => console.log('success!')).catch(error => console.error('fail...', error));
+                    return upgradeFacilitatorAccessToken(merchantAccessToken, { buyerAccessToken, orderID });
                 },
                 getFacilitatorAccessToken: () => {
                     return facilitatorAccessToken;

@@ -1,7 +1,7 @@
 /* @flow */
 /* eslint max-lines: off, max-nested-callbacks: off */
 
-import { cleanup, memoize, stringifyError, stringifyErrorMessage } from 'belter/src';
+import { cleanup, memoize, stringifyError, stringifyErrorMessage, noop } from 'belter/src';
 import { FPTI_KEY, FUNDING } from '@paypal/sdk-constants/src';
 import { ZalgoPromise } from 'zalgo-promise/src';
 
@@ -414,7 +414,9 @@ function initApplePay({ props, payment, serviceData } : InitOptions) : PaymentFl
                             approveApplePayPayment(orderID, clientID, applePayPayment)
                                 .then(validatedPayment => {
                                     if (validatedPayment) {
-                                        completePayment(window.ApplePaySession.STATUS_SUCCESS);
+                                        completePayment({
+                                            status: window.ApplePaySession.STATUS_SUCCESS
+                                        });
 
                                         const data = {};
                                         const actions = { restart: () => ZalgoPromise.try(setupApplePaySession) };
@@ -422,11 +424,13 @@ function initApplePay({ props, payment, serviceData } : InitOptions) : PaymentFl
                                         return ZalgoPromise.all([
                                             onApprove(data, actions),
                                             close()
-                                        ]);
+                                        ]).then(noop);
                                     }
                                 })
                                 .catch(err => {
-                                    completePayment(window.ApplePaySession.STATUS_FAILURE);
+                                    completePayment({
+                                        status: window.ApplePaySession.STATUS_FAILURE
+                                    });
                                     handleApplePayError(FPTI_TRANSITION.APPLEPAY_PAYMENT_ERROR, err);
                                 });
                         }

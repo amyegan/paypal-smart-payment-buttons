@@ -1,6 +1,6 @@
 {
   "name": "@paypal/smart-payment-buttons",
-  "version": "5.0.38-1",
+  "version": "5.0.45",
   "publishConfig": {
     "registry": "https://registry.npmjs.org"
   },
@@ -53,11 +53,11 @@
   },
   "alias": {},
   "dependencies": {
-    "@paypal/checkout-components": "^5.0.30",
+    "@paypal/checkout-components": "^5.0.167",
     "@paypal/common-components": "^1.0.16",
     "@paypal/installments": "^1.0.0",
-    "@paypal/sdk-client": "^4.0.123",
-    "@paypal/sdk-constants": "^1.0.87",
+    "@paypal/sdk-client": "^4.0.156",
+    "@paypal/sdk-constants": "^1.0.107",
     "@paypal/sdk-logos": "^1.0.26",
     "@paypal/sdk-release": "^5.0.138",
     "beaver-logger": "^4.0.12",
@@ -76,7 +76,7 @@
   "devDependencies": {
     "babel-core": "^7.0.0-bridge.0",
     "express": "^4.16.3",
-    "flow-bin": "0.135.0",
+    "flow-bin": "0.155.0",
     "grabthar-release": "^1.0.8",
     "grumbler-scripts": "^3.0.83",
     "post-robot": "^10.0.13",

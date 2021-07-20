@@ -1,14 +1,14 @@
+/* @flow */
 /* eslint max-lines: 0 */
 
-/* @flow */
-import type { ZalgoPromise } from 'zalgo-promise/src';
+import { ZalgoPromise } from 'zalgo-promise/src';
 import { CURRENCY, FPTI_KEY, FUNDING, WALLET_INSTRUMENT, INTENT } from '@paypal/sdk-constants/src';
-import { request, noop, memoize } from 'belter/src';
+import { request, noop, memoize, uniqueID } from 'belter/src';
 
 import { SMART_API_URI, ORDERS_API_URL, VALIDATE_PAYMENT_METHOD_API } from '../config';
 import { getLogger, setBuyerAccessToken } from '../lib';
 import { FPTI_TRANSITION, FPTI_CONTEXT_TYPE, HEADERS, SMART_PAYMENT_BUTTONS,
-    INTEGRATION_ARTIFACT, USER_EXPERIENCE_FLOW, PRODUCT_FLOW, PREFER, LSAT_UPGRADE_FAILED } from '../constants';
+    INTEGRATION_ARTIFACT, ITEM_CATEGORY, USER_EXPERIENCE_FLOW, PRODUCT_FLOW, PREFER, LSAT_UPGRADE_FAILED } from '../constants';
 import type { ShippingMethod, ShippingAddress } from '../payment-flows/types';
 
 import { callSmartAPI, callGraphQL, callRestAPI } from './api';
@@ -356,8 +356,9 @@ export function validatePaymentMethod({ accessToken, orderID, paymentMethodID, e
 
 export function billingTokenToOrderID(billingToken : string) : ZalgoPromise<string> {
     return callSmartAPI({
-        method: 'post',
-        url:    `${ SMART_API_URI.PAYMENT }/${ billingToken }/ectoken`
+        authenticated: false,
+        method:        'post',
+        url:           `${ SMART_API_URI.PAYMENT }/${ billingToken }/ectoken`
     }).then(({ data }) => {
         return data.token;
     });
@@ -365,8 +366,9 @@ export function billingTokenToOrderID(billingToken : string) : ZalgoPromise<stri
 
 export function subscriptionIdToCartId(subscriptionID : string) : ZalgoPromise<string> {
     return callSmartAPI({
-        method: 'post',
-        url:    `${ SMART_API_URI.SUBSCRIPTION }/${ subscriptionID }/cartid`
+        authenticated: false,
+        method:        'post',
+        url:           `${ SMART_API_URI.SUBSCRIPTION }/${ subscriptionID }/cartid`
     }).then(({ data }) => {
         return data.token;
     });
@@ -552,7 +554,8 @@ type SupplementalOrderInfo = {|
             |},
             supplementary? : {|
                 initiationIntent? : string
-            |}
+            |},
+            category? : $Values<typeof ITEM_CATEGORY>
         |},
         buyer? : {|
             userId? : string
@@ -592,6 +595,7 @@ export const getSupplementalOrderInfo : GetSupplementalOrderInfo = memoize(order
                         supplementary {
                             initiationIntent
                         }
+                        category
                     }
                     flags {
                         isChangeShippingAddressAllowed
@@ -729,30 +733,31 @@ export function updateButtonClientConfig({ orderID, fundingSource, inline = fals
     });
 }
 
-type PayWithNonceOptions = {|
+type PayWithPaymentMethodTokenOptions = {|
     orderID : string,
-    paymentMethodNonce : string,
+    paymentMethodToken : string,
     clientID : string,
     branded : boolean,
-    buttonSessionID : string
+    buttonSessionID : string,
+    clientMetadataID : string
 |};
 
-export function payWithNonce({ orderID, paymentMethodNonce, clientID, branded = true, buttonSessionID } : PayWithNonceOptions) : ZalgoPromise<ApproveData> {
-    getLogger().info(`pay_with_nonce_input_params`, { orderID, paymentMethodNonce, clientID, branded, buttonSessionID });
+export function payWithPaymentMethodToken({ orderID, paymentMethodToken, clientID, branded, buttonSessionID, clientMetadataID } : PayWithPaymentMethodTokenOptions) : ZalgoPromise<ApproveData> {
+    getLogger().info(`pay_with_payment_method_token_input_params`, { orderID, paymentMethodToken, clientID, branded, buttonSessionID });
     return callGraphQL({
         name:  'approvePaymentWithNonce',
         query: `
             mutation ApprovePaymentWithNonce(
                 $orderID : String!
                 $clientID : String!
-                $paymentMethodNonce: String!
+                $paymentMethodToken: String!
                 $branded: Boolean!
                 $buttonSessionID: String
             ) {
                 approvePaymentWithNonce(
                     token: $orderID
                     clientID: $clientID
-                    paymentMethodNonce: $paymentMethodNonce
+                    paymentMethodNonce: $paymentMethodToken
                     branded: $branded
                     buttonSessionID: $buttonSessionID
                 ) {
@@ -768,18 +773,59 @@ export function payWithNonce({ orderID, paymentMethodNonce, clientID, branded = 
         variables: {
             orderID,
             clientID,
-            paymentMethodNonce,
+            paymentMethodToken,
             branded,
             buttonSessionID
         },
         headers: {
-            [ HEADERS.CLIENT_CONTEXT ]: orderID
+            [ HEADERS.CLIENT_CONTEXT ]:     orderID,
+            [ HEADERS.CLIENT_METADATA_ID ]: clientMetadataID
         }
     }).then(({ approvePaymentWithNonce }) => {
-        getLogger().info('pay_with_paymentMethodNonce', JSON.stringify(approvePaymentWithNonce.buyer.userId));
+        getLogger().info('pay_with_paymentMethodNonce', approvePaymentWithNonce.buyer.userId);
         setBuyerAccessToken(approvePaymentWithNonce.buyer.auth.accessToken);
         return {
             payerID: approvePaymentWithNonce.buyer.userId
         };
+    });
+}
+
+type TokenizeCardOptions = {|
+    card : {|
+        number : string,
+        cvv : string,
+        expiry : string
+    |}
+|};
+
+type TokenizeCardResult = {|
+    paymentMethodToken : string
+|};
+
+export function tokenizeCard({ card } : TokenizeCardOptions) : ZalgoPromise<TokenizeCardResult> {
+    return ZalgoPromise.try(() => {
+        // eslint-disable-next-line no-console
+        console.warn('Card Tokenize GQL mutation not yet implemented', { card });
+        return {
+            paymentMethodToken: uniqueID()
+        };
+    });
+}
+
+type ApproveCardPaymentOptions = {|
+    orderID : string,
+    vault : boolean,
+    branded : boolean,
+    card : {|
+        number : string,
+        cvv : string,
+        expiry : string
+    |}
+|};
+
+export function approveCardPayment({ card, orderID, vault, branded } : ApproveCardPaymentOptions) : ZalgoPromise<void> {
+    return ZalgoPromise.try(() => {
+        // eslint-disable-next-line no-console
+        console.warn('Card Approve Payment GQL mutation not yet implemented', { card, orderID, vault, branded });
     });
 }

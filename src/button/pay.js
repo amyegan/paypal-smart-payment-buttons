@@ -4,8 +4,8 @@ import { noop, stringifyError } from 'belter/src';
 import { ZalgoPromise } from 'zalgo-promise/src';
 import { FPTI_KEY } from '@paypal/sdk-constants/src';
 
-import { applepay, checkout, cardFields, native, nonce, vaultCapture, walletCapture, popupBridge, type Payment, type PaymentFlow } from '../payment-flows';
-import { getLogger, promiseNoop, sendBeacon } from '../lib';
+import { applepay, checkout, cardField, cardFields, native, brandedVaultCard, vaultCapture, walletCapture, popupBridge, type Payment, type PaymentFlow } from '../payment-flows';
+import { getLogger, sendBeacon } from '../lib';
 import { FPTI_TRANSITION } from '../constants';
 import { updateButtonClientConfig } from '../api';
 import { getConfirmOrder } from '../props/confirmOrder';
@@ -16,9 +16,10 @@ import { validateOrder } from './validation';
 import { showButtonSmartMenu } from './menu';
 
 const PAYMENT_FLOWS : $ReadOnlyArray<PaymentFlow> = [
-    nonce,
+    brandedVaultCard,
     vaultCapture,
     walletCapture,
+    cardField,
     cardFields,
     popupBridge,
     applepay,
@@ -35,6 +36,10 @@ export function setupPaymentFlows({ props, config, serviceData, components } : {
 }
 
 export function getPaymentFlow({ props, payment, config, serviceData } : {| props : ButtonProps, payment : Payment, config : Config, components : Components, serviceData : ServiceData |}) : PaymentFlow {
+    if (!props.fundingSource && payment.fundingSource) {
+        props.fundingSource = payment.fundingSource;
+    }
+
     for (const flow of PAYMENT_FLOWS) {
         if (flow.isEligible({ props, config, serviceData }) && flow.isPaymentEligible({ props, payment, config, serviceData })) {
             return flow;
@@ -63,6 +68,7 @@ type InitiatePaymentOptions = {|
 
 export function initiatePaymentFlow({ payment, serviceData, config, components, props } : InitiatePaymentOptions) : ZalgoPromise<void> {
     const { button, fundingSource, instrumentType } = payment;
+    const buttonLabel = props.style?.label;
 
     return ZalgoPromise.try(() => {
         const { merchantID, personalization } = serviceData;
@@ -71,9 +77,9 @@ export function initiatePaymentFlow({ payment, serviceData, config, components, 
         sendPersonalizationBeacons(personalization);
 
         const { name, init, inline, spinner, updateFlowClientConfig } = getPaymentFlow({ props, payment, config, components, serviceData });
-        const { click = promiseNoop, start, close } = init({ props, config, serviceData, components, payment });
+        const { click, start, close } = init({ props, config, serviceData, components, payment });
 
-        const clickPromise = ZalgoPromise.try(click);
+        const clickPromise = click ? ZalgoPromise.try(click) : ZalgoPromise.resolve();
         clickPromise.catch(noop);
 
         getLogger()
@@ -89,10 +95,12 @@ export function initiatePaymentFlow({ payment, serviceData, config, components, 
                 [FPTI_KEY.IS_VAULT]:       instrumentType ? '1' : '0'
             }).flush();
 
-        return ZalgoPromise.hash({
-            valid: onClick ? onClick({ fundingSource }) : true
-        }).then(({ valid }) => {
-            if (!valid) {
+        return ZalgoPromise.try(() => {
+            return onClick ? onClick({ fundingSource }) : true;
+        }).then(valid => {
+            return valid ? clickPromise : false;
+        }).then(valid => {
+            if (valid === false) {
                 return;
             }
 
@@ -121,7 +129,7 @@ export function initiatePaymentFlow({ payment, serviceData, config, components, 
             });
 
             const validateOrderPromise = createOrder().then(orderID => {
-                return validateOrder(orderID, { env, clientID, merchantID, intent, currency, vault });
+                return validateOrder(orderID, { env, clientID, merchantID, intent, currency, vault, buttonLabel });
             });
             
             const confirmOrder = ({ orderID, payload }) => getConfirmOrder({ orderID, payload, partnerAttributionID }, { facilitatorAccessToken: serviceData.facilitatorAccessToken });
