@@ -218,9 +218,8 @@
                             }
                         }
                         if (_result2 instanceof ZalgoPromise && (_result2.resolved || _result2.rejected)) {
-                            var promiseResult = _result2;
-                            promiseResult.resolved ? promise.resolve(promiseResult.value) : promise.reject(promiseResult.error);
-                            promiseResult.errorHandled = !0;
+                            _result2.resolved ? promise.resolve(_result2.value) : promise.reject(_result2.error);
+                            _result2.errorHandled = !0;
                         } else utils_isPromise(_result2) ? _result2 instanceof ZalgoPromise && (_result2.resolved || _result2.rejected) ? _result2.resolved ? promise.resolve(_result2.value) : promise.reject(_result2.error) : chain(_result2, promise) : promise.resolve(_result2);
                     }
                     handlers.length = 0;
@@ -285,7 +284,7 @@
             ZalgoPromise.all = function(promises) {
                 var promise = new ZalgoPromise;
                 var count = promises.length;
-                var results = [].slice();
+                var results = [];
                 if (!count) {
                     promise.resolve(results);
                     return promise;
@@ -831,11 +830,11 @@
         function setupNativeFallback(_ref) {
             var _ref$parentDomain = _ref.parentDomain, parentDomain = void 0 === _ref$parentDomain ? window.location.origin : _ref$parentDomain;
             if (!window.opener) throw new Error("Expected window to have opener");
-            var clean = (tasks = [], cleaned = !1, cleaner = {
+            var clean = (tasks = [], cleaned = !1, {
                 set: function(name, item) {
                     if (!cleaned) {
                         (void 0)[name] = item;
-                        cleaner.register((function() {
+                        this.register((function() {
                             delete (void 0)[name];
                         }));
                     }
@@ -865,7 +864,7 @@
                     return promise_ZalgoPromise.all(results).then(src_util_noop);
                 }
             });
-            var tasks, cleaned, cleanErr, cleaner;
+            var tasks, cleaned, cleanErr;
             var postRobot = function() {
                 var paypal = function() {
                     if (!window.paypal) throw new Error("paypal not found");

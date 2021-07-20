@@ -365,9 +365,8 @@
                             }
                         }
                         if (_result2 instanceof ZalgoPromise && (_result2.resolved || _result2.rejected)) {
-                            var promiseResult = _result2;
-                            promiseResult.resolved ? promise.resolve(promiseResult.value) : promise.reject(promiseResult.error);
-                            promiseResult.errorHandled = !0;
+                            _result2.resolved ? promise.resolve(_result2.value) : promise.reject(_result2.error);
+                            _result2.errorHandled = !0;
                         } else utils_isPromise(_result2) ? _result2 instanceof ZalgoPromise && (_result2.resolved || _result2.rejected) ? _result2.resolved ? promise.resolve(_result2.value) : promise.reject(_result2.error) : chain(_result2, promise) : promise.resolve(_result2);
                     }
                     handlers.length = 0;
@@ -432,7 +431,7 @@
             ZalgoPromise.all = function(promises) {
                 var promise = new ZalgoPromise;
                 var count = promises.length;
-                var results = [].slice();
+                var results = [];
                 if (!count) {
                     promise.resolve(results);
                     return promise;
@@ -1437,7 +1436,7 @@
                         return (_ref3 = {}).feed_name = "payments_sdk", _ref3.serverside_data_source = "checkout", 
                         _ref3.client_id = clientID, _ref3.page_session_id = sessionID, _ref3.referer_url = window.location.host, 
                         _ref3.buyer_cntry = buyerCountry, _ref3.locale = lang + "_" + country, _ref3.integration_identifier = clientID, 
-                        _ref3.sdk_environment = isIos() ? "iOS" : isAndroid() ? "android" : null, _ref3.sdk_name = "payments_sdk", 
+                        _ref3.sdk_environment = isIos() ? "ios" : isAndroid() ? "android" : null, _ref3.sdk_name = "payments_sdk", 
                         _ref3.sdk_version = sdkVersion, _ref3.user_agent = window.navigator && window.navigator.userAgent, 
                         _ref3.context_correlation_id = sdkCorrelationID, _ref3.t = Date.now().toString(), 
                         _ref3;
@@ -1474,7 +1473,7 @@
                 logger.addTrackingBuilder((function() {
                     var _ref3;
                     return (_ref3 = {}).state_name = "smart_button", _ref3.context_type = "button_session_id", 
-                    _ref3.context_id = buttonSessionID, _ref3.button_session_id = buttonSessionID, _ref3.button_version = "5.0.45", 
+                    _ref3.context_id = buttonSessionID, _ref3.button_session_id = buttonSessionID, _ref3.button_version = "5.0.46", 
                     _ref3.user_id = buttonSessionID, _ref3;
                 }));
                 (function() {
@@ -1634,11 +1633,11 @@
                     }
                 }();
             }(window.opener, 0, 500);
-            var clean = (tasks = [], cleaned = !1, cleaner = {
+            var clean = (tasks = [], cleaned = !1, {
                 set: function(name, item) {
                     if (!cleaned) {
                         (void 0)[name] = item;
-                        cleaner.register((function() {
+                        this.register((function() {
                             delete (void 0)[name];
                         }));
                     }
@@ -1668,7 +1667,7 @@
                     return promise_ZalgoPromise.all(results).then(src_util_noop);
                 }
             });
-            var tasks, cleaned, cleanErr, cleaner;
+            var tasks, cleaned, cleanErr;
             var postRobot = function() {
                 var paypal = getPayPal();
                 if (!paypal.postRobot) throw new Error("paypal.postRobot not found");
